@@ -36,6 +36,10 @@ class PuppeteerPercy {
             minimumHeight?: number
         } = {}
     ): Promise<void> {
+        if (!this.buildId) {
+            return;
+        }
+
         const source = await page.content();
 
         const rootResource = this.client.makeResource({
