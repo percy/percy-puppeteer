@@ -1,0 +1,32 @@
+{
+  "name": "percy-puppeteer",
+  "version": "0.0.0",
+  "description": "Percy.io integration with Google Puppeteer",
+  "main": "./lib/index.js",
+  "repository": "https://github.com/GitBookIO/percy-puppeteer",
+  "author": "Samy Pessé <samy@gitbook.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-flow": "^6.23.0",
+    "eslint": "^4.16.0",
+    "eslint-config-gitbook": "^3.0.0",
+    "eslint-plugin-flowtype": "^2.42.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-jsx-a11y": "^6.0.3",
+    "eslint-plugin-prettier": "^2.5.0",
+    "eslint-plugin-react": "^7.6.0",
+    "flow-bin": "^0.64.0",
+    "prettier": "^1.10.2"
+  },
+  "scripts": {
+    "lint": "eslint ./src",
+    "prepare": "rm -rf ./lib && babel --out-dir ./lib ./src"
+  },
+  "dependencies": {
+    "mime-types": "^2.1.17",
+    "percy-client": "^2.6.0",
+    "walk": "^2.3.9"
+  }
+}
