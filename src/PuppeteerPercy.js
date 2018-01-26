@@ -46,7 +46,7 @@ class PuppeteerPercy {
         });
 
         const snapshotResponse = await this.client.createSnapshot(
-            buildId,
+            this.buildId,
             [rootResource],
             {
                 name,
@@ -130,8 +130,8 @@ class PuppeteerPercy {
         if (missingResources.length > 0) {
             for (const missingResource of missingResources) {
                 promises.push(
-                    percyClient.uploadResource(
-                        buildId,
+                    this.client.uploadResource(
+                        this.buildId,
                         shaToResource[missingResource.id].content
                     )
                 );
