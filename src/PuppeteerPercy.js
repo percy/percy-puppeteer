@@ -43,7 +43,7 @@ class PuppeteerPercy {
         const source = await page.content();
 
         const rootResource = this.client.makeResource({
-            resourceUrl: '/',
+            resourceUrl: page.url(),
             content: source,
             isRoot: true,
             mimetype: 'text/html'
