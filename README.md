@@ -33,9 +33,12 @@ const browser = await puppeteer.launch();
 const page = await browser.newPage();
 await page.goto('https://example.com');
 
-// Take a screemshot
+// Take a screenshot
 await percy.takeScreenshot('First Screenshot', page);
 
 // Push the result to Percy
 await percy.finalizeBuild();
 ```
+
+# Acknowledgements
+This package was originally forked from [percy-puppeteer](https://github.com/GitbookIO/percy-puppeteer), created by [Samy Pessé](https://twitter.com/SamyPesse) from [GitBook](https://www.gitbook.com/).  Thank you Samy!

@@ -3,8 +3,11 @@
   "version": "0.2.0",
   "description": "Percy.io integration with Google Puppeteer",
   "main": "./lib/index.js",
-  "repository": "https://github.com/GitBookIO/percy-puppeteer",
-  "author": "Samy Pessé <samy@gitbook.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/percy/percy-puppeteer.git"
+  },
+  "author": "Perceptual Inc.",
   "license": "MIT",
   "devDependencies": {
     "@babel/cli": "^7.0.0-beta.44",
