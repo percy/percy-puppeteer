@@ -7,9 +7,10 @@
   "author": "Samy Pessé <samy@gitbook.com>",
   "license": "MIT",
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-preset-env": "^1.6.1",
-    "babel-preset-flow": "^6.23.0",
+    "@babel/cli": "^7.0.0-beta.44",
+    "@babel/core": "^7.0.0-beta.44",
+    "@babel/preset-env": "^7.0.0-beta.44",
+    "@babel/preset-flow": "^7.0.0-beta.44",
     "eslint": "^4.16.0",
     "eslint-config-gitbook": "^3.0.0",
     "eslint-plugin-flowtype": "^2.42.0",
