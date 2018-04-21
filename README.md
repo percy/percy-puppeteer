@@ -1,21 +1,21 @@
-# percy-puppeteer
+# @percy/puppeteer
 
 Percy integration for Google Puppeteer.
 
 # Install
 
 ```
-$ npm install puppeteer percy-puppeteer --dev
+$ npm install puppeteer @percy/puppeteer --dev
 ```
 
 # Usage
 
 ```js
 import puppeteer from 'puppeteer';
-import { PuppeteerPercy, FileSystemAssetLoader } from 'percy-puppeteer';
+import { Percy, FileSystemAssetLoader } from '@percy/puppeteer';
 
 // Create a percy client
-const percy = new PuppeteerPercy({
+const percy = new Percy({
     loaders: [
         new FileSystemAssetLoader({
             buildDir: './some-local-folder',

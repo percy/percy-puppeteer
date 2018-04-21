@@ -1,5 +1,5 @@
 /* @flow */
-import PuppeteerPercy from './PuppeteerPercy';
+import Percy from './Percy';
 import FileSystemAssetLoader from './FileSystemAssetLoader';
 
-export { PuppeteerPercy, FileSystemAssetLoader };
+export { Percy, FileSystemAssetLoader };

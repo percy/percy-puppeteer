@@ -8,7 +8,7 @@ import type FileSystemAssetLoader from './FileSystemAssetLoader';
 /*
  * Interface betwen the puppeteer browser and the percy API.
  */
-class PuppeteerPercy {
+class Percy {
     client: PercyClient;
     environment: PercyEnvironment;
     buildId: ?string;
@@ -17,7 +17,7 @@ class PuppeteerPercy {
     constructor({ loaders }: { loaders: FileSystemAssetLoader[] }) {
         const token = process.env.PERCY_TOKEN;
         const apiUrl = process.env.PERCY_API;
-        const clientInfo = `percy-puppeteer ${packageJSON.version}`;
+        const clientInfo = `@percy/puppeteer ${packageJSON.version}`;
 
         this.client = new PercyClient({ token, apiUrl, clientInfo });
         this.environment = new PercyEnvironment(process.env);
@@ -74,7 +74,7 @@ class PuppeteerPercy {
     async startBuild(): Promise<void> {
         if (this.buildId) {
             throw new Error(
-                'There is already an active build, call puppeteerPercy.finalizeBuild() first'
+                'There is already an active build, call percy.finalizeBuild() first'
             );
         }
 
@@ -103,7 +103,7 @@ class PuppeteerPercy {
     async finalizeBuild(): Promise<void> {
         if (!this.buildId) {
             throw new Error(
-                'No build started, call puppeteerPercy.startBuild() first'
+                'No build started, call percy.startBuild() first'
             );
         }
 
@@ -160,4 +160,4 @@ function parseMissingResources(response) {
     );
 }
 
-export default PuppeteerPercy;
+export default Percy;
