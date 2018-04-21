@@ -42,5 +42,8 @@
       "eslint ./src --fix --color --ignore-pattern '!.*'",
       "git add"
     ]
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
