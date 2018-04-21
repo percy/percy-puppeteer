@@ -27,7 +27,7 @@ class Percy {
     /*
      * Take a screenshot of current browser.
      */
-    async takeScreenshot(
+    async snapshot(
         name: string,
         page: puppeteer.Page,
         options: {

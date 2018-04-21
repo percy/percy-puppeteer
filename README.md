@@ -14,7 +14,7 @@ $ npm install puppeteer @percy/puppeteer --dev
 import puppeteer from 'puppeteer';
 import { Percy, FileSystemAssetLoader } from '@percy/puppeteer';
 
-// Create a percy client
+// Create a Percy client
 const percy = new Percy({
     loaders: [
         new FileSystemAssetLoader({
@@ -24,20 +24,22 @@ const percy = new Percy({
     ]
 });
 
-// Start a build
+// Start a Percy build
 await percy.startBuild();
 
-
-// Do some stuffs with puppeteer
+// Launch the browser and visit example.com
 const browser = await puppeteer.launch();
 const page = await browser.newPage();
 await page.goto('https://example.com');
 
-// Take a screenshot
-await percy.takeScreenshot('First Screenshot', page);
+// Take a snapshot
+await percy.snapshot('Snapshot of example.com', page);
 
-// Push the result to Percy
+// Tell Percy we're finished taking snapshots
 await percy.finalizeBuild();
+
+// Close the browser
+browser.close();
 ```
 
 # Acknowledgements
