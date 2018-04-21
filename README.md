@@ -1,6 +1,10 @@
 # @percy/puppeteer
 
-Percy integration for Google Puppeteer.
+Percy visual testing for Google Puppeteer.
+
+# Beta Release
+
+@percy/puppeteer is in early beta. It may contain bugs and sharp edges, and change in backwards-incompatible ways until v1.0.0 is released.
 
 # Install
 
