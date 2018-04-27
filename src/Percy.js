@@ -5,6 +5,8 @@ import PercyEnvironment from 'percy-client/dist/environment';
 import packageJSON from '../package.json';
 import type FileSystemAssetLoader from './FileSystemAssetLoader';
 
+import * as url from 'url';
+
 /*
  * Interface betwen the puppeteer browser and the percy API.
  */
@@ -42,8 +44,10 @@ class Percy {
 
     const source = await page.content();
 
+    const path = url.parse(page.url()).path;
+
     const rootResource = this.client.makeResource({
-      resourceUrl: page.url(),
+      resourceUrl: path,
       content: source,
       isRoot: true,
       mimetype: 'text/html',
