@@ -14,6 +14,7 @@ class Percy {
   client: PercyClient;
   environment: PercyEnvironment;
   buildId: ?string;
+  webUrl: ?string;
   loaders: FileSystemAssetLoader[];
 
   constructor({ loaders }: { loaders: FileSystemAssetLoader[] }) {
@@ -42,13 +43,16 @@ class Percy {
       return;
     }
 
-    const source = await page.content();
+    const pageUrl = page.url();
+    const path = url.parse(pageUrl).path;
 
-    const path = url.parse(page.url()).path;
+    await this.setBaseIfMissing(page, pageUrl);
+
+    const snapshotContent = await page.content();
 
     const rootResource = this.client.makeResource({
       resourceUrl: path,
-      content: source,
+      content: snapshotContent,
       isRoot: true,
       mimetype: 'text/html',
     });
@@ -68,6 +72,18 @@ class Percy {
     await this.client.finalizeSnapshot(snapshotId);
   }
 
+  // If the page doesn't have a base, create one using baseUrl
+  async setBaseIfMissing(page: puppeteer.Page, baseUrl: string): Promise<void> {
+    const missingBase = await page.evaluate(() => document.querySelector('base') == null);
+    if (missingBase) {
+      const base = `<base href="${baseUrl}">`;
+      await page.evaluate(base => {
+        let head = document.querySelector('head');
+        head.insertAdjacentHTML('afterbegin', base);
+      }, base);
+    }
+  }
+
   /*
      * Start a new build.
      */
@@ -82,6 +98,7 @@ class Percy {
     // Create the build
     const buildResponse = await this.client.createBuild(this.environment.repo, { resources });
     this.buildId = buildResponse.body.data.id;
+    this.webUrl = buildResponse.body.data.attributes['web-url'];
 
     // Upload the resources that do not exist in Percy
     const shaToResource = {};
@@ -101,7 +118,12 @@ class Percy {
     }
 
     await this.client.finalizeBuild(this.buildId);
+
+    // eslint-disable-next-line no-console
+    console.log(`Percy is now processing. You can view the visual diffs here: ${this.webUrl}`);
+
     this.buildId = null;
+    this.webUrl = null;
   }
 
   /*

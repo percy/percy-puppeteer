@@ -14,6 +14,10 @@
     node: true,
   },
 
+  globals: {
+    document: true
+  },
+
   rules: {
     'import/first': 'off',
     'import/no-extraneous-dependencies': [
