@@ -25,7 +25,8 @@ const percy = new Percy({
             buildDir: './some-local-folder',
             mountPath: '/public/'
         })
-    ]
+    ],
+    includeBase: false // If true, will insert a base tag in the header
 });
 
 // Start a Percy build

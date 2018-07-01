@@ -16,8 +16,9 @@ class Percy {
   buildId: ?string;
   webUrl: ?string;
   loaders: FileSystemAssetLoader[];
+  includeBase: boolean;
 
-  constructor({ loaders }: { loaders: FileSystemAssetLoader[] }) {
+  constructor({ loaders, includeBase }: { loaders: FileSystemAssetLoader[], includeBase: false }) {
     const token = process.env.PERCY_TOKEN;
     const apiUrl = process.env.PERCY_API;
     const clientInfo = `@percy/puppeteer ${packageJSON.version}`;
@@ -25,6 +26,7 @@ class Percy {
     this.client = new PercyClient({ token, apiUrl, clientInfo });
     this.environment = new PercyEnvironment(process.env);
     this.loaders = loaders;
+    this.includeBase = includeBase;
   }
 
   /*
@@ -46,7 +48,9 @@ class Percy {
     const pageUrl = page.url();
     const path = url.parse(pageUrl).path;
 
-    await this.setBaseIfMissing(page, pageUrl);
+    if (this.includeBase) {
+      await this.setBaseIfMissing(page, pageUrl);
+    }
 
     const snapshotContent = await page.content();
 
