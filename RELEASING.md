@@ -5,7 +5,7 @@
 1. `yarn version` - enter new version
 1. `git push origin version-bump`
 1. Issue a PR for `version-bump` and merge.
-1. `git push --tags` (possibly wrong now, improve next time through)
+1. `git push --tags`
 1. Ensure tests have passed on that tag
 1. [Update the release notes](https://github.com/percy/percy-puppeteer/releases) on GitHub
 1. `yarn publish` (leave new version blank)
