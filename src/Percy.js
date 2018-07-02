@@ -8,7 +8,7 @@ import type FileSystemAssetLoader from './FileSystemAssetLoader';
 import * as url from 'url';
 
 /*
- * Interface betwen the puppeteer browser and the percy API.
+ * Interface between the puppeteer browser and the percy API.
  */
 class Percy {
   client: PercyClient;
