@@ -111,6 +111,8 @@ class Percy {
     }
 
     await this.uploadMissingResources(buildResponse, shaToResource);
+
+    return { buildId: this.buildId, webUrl: this.webUrl };
   }
 
   /*
