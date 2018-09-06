@@ -100,7 +100,7 @@ class Percy {
     const resources = await this.gatherBuildResources();
 
     // Create the build
-    const buildResponse = await this.client.createBuild(this.environment.repo, { resources });
+    const buildResponse = await this.client.createBuild({ resources });
     this.buildId = buildResponse.body.data.id;
     this.webUrl = buildResponse.body.data.attributes['web-url'];
 
