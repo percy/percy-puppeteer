@@ -3162,9 +3162,9 @@ path-type@^2.0.0:
   dependencies:
     pify "^2.0.0"
 
-percy-client@^2.6.0:
-  version "2.8.2"
-  resolved "https://registry.yarnpkg.com/percy-client/-/percy-client-2.8.2.tgz#2415dcc5d07bd4dea913df5f237cff4f0295839a"
+percy-client@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/percy-client/-/percy-client-3.0.0.tgz#86289f8224817cf550c9b21aaf994b7fa16f291d"
   dependencies:
     base64-js "^1.2.3"
     bluebird "^3.5.1"
@@ -3174,6 +3174,7 @@ percy-client@^2.6.0:
     regenerator-runtime "^0.11.1"
     request "^2.85.0"
     request-promise "^4.2.2"
+    walk "^2.3.14"
   optionalDependencies:
     lint-staged "^7.0.4"
 
@@ -4017,6 +4018,12 @@ w3c-hr-time@^1.0.1:
   resolved "https://registry.yarnpkg.com/w3c-hr-time/-/w3c-hr-time-1.0.1.tgz#82ac2bff63d950ea9e3189a58a65625fedf19045"
   dependencies:
     browser-process-hrtime "^0.1.2"
+
+walk@^2.3.14:
+  version "2.3.14"
+  resolved "https://registry.yarnpkg.com/walk/-/walk-2.3.14.tgz#60ec8631cfd23276ae1e7363ce11d626452e1ef3"
+  dependencies:
+    foreachasync "^3.0.0"
 
 walk@^2.3.9:
   version "2.3.13"
