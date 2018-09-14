@@ -1,14 +1,17 @@
 # Releasing
 
-1. `git checkout -b version-bump`
-1. `yarn login`
-1. `yarn version` - enter new version
-1. `git push origin version-bump`
-1. Issue a PR for `version-bump` and merge.
+1. check that you are using the percy-admin npm account: `npm whoami`
+1. If you are not, sign out and sign as percy-admin
+1. `git pull origin master`
+1. `git checkout -b x.x.x`
+1. `npm version x.x.x`
+1. `git push`
+1. Ensure tests have passed on that branch
+1. Open up a pull request titled with the new version number
+1. Merge approved pull request
 1. `git push --tags`
-1. Ensure tests have passed on that tag
-1. [Update the release notes](https://github.com/percy/percy-puppeteer/releases) on GitHub
-1. `yarn publish` (leave new version blank)
+1. Draft and publish a [new release on github](https://github.com/percy/percy-puppeteer/releases)
+1. `npm publish`
 1. [Visit npm](https://www.npmjs.com/package/@percy/puppeteer) and see the new version is live
 
 * Announce the new release,
