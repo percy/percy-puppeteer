@@ -17,6 +17,7 @@ class Percy {
   webUrl: ?string;
   loaders: FileSystemAssetLoader[];
   includeBase: boolean;
+  enabled: boolean;
 
   constructor({ loaders, includeBase }: { loaders: FileSystemAssetLoader[], includeBase: false }) {
     const token = process.env.PERCY_TOKEN;
@@ -27,6 +28,18 @@ class Percy {
     this.environment = new PercyEnvironment(process.env);
     this.loaders = loaders;
     this.includeBase = includeBase;
+
+    if (process.env.PERCY_ENABLE === '0') {
+      this.enabled = false;
+      // eslint-disable-next-line no-console
+      console.log('Percy is disabled, due to PERCY_ENABLE being set to 0.');
+    } else if (!process.env.PERCY_TOKEN) {
+      this.enabled = false;
+      // eslint-disable-next-line no-console
+      console.log('Percy is disabled, due to missing PERCY_TOKEN.');
+    } else {
+      this.enabled = true;
+    }
   }
 
   /*
@@ -41,6 +54,10 @@ class Percy {
       minimumHeight?: number,
     } = {},
   ): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+
     if (!this.buildId) {
       return;
     }
@@ -92,6 +109,10 @@ class Percy {
      * Start a new build.
      */
   async startBuild(): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+
     if (this.buildId) {
       throw new Error('There is already an active build, call percy.finalizeBuild() first');
     }
@@ -119,6 +140,10 @@ class Percy {
      * Commit the build as finalized.
      */
   async finalizeBuild(): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+
     if (!this.buildId) {
       throw new Error('No build started, call percy.startBuild() first');
     }
