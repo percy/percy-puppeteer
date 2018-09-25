@@ -33,10 +33,10 @@ class Percy {
       this.enabled = false;
       // eslint-disable-next-line no-console
       console.log('Percy is disabled, due to PERCY_ENABLE being set to 0.');
-    } else if (!process.env.PERCY_TOKEN || !process.env.PERCY_PROJECT) {
+    } else if (!process.env.PERCY_TOKEN) {
       this.enabled = false;
       // eslint-disable-next-line no-console
-      console.log('Percy is disabled, due to missing PERCY_TOKEN or PERCY_PROJECT.');
+      console.log('Percy is disabled, due to missing PERCY_TOKEN.');
     } else {
       this.enabled = true;
     }
