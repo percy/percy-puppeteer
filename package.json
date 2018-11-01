@@ -1,8 +1,9 @@
 {
   "name": "@percy/puppeteer",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "description": "Percy.io integration with Google Puppeteer",
-  "main": "./lib/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/percy/percy-puppeteer.git"
@@ -10,43 +11,18 @@
   "author": "Perceptual Inc.",
   "license": "MIT",
   "devDependencies": {
-    "@babel/cli": "^7.0.0-beta.44",
-    "@babel/core": "^7.0.0-beta.44",
-    "@babel/preset-env": "^7.0.0-beta.44",
-    "@babel/preset-flow": "^7.0.0-beta.44",
-    "eslint": "^4.16.0",
-    "eslint-config-gitbook": "^3.0.0",
-    "eslint-plugin-flowtype": "^2.46.3",
-    "eslint-plugin-import": "^2.8.0",
-    "eslint-plugin-jsx-a11y": "^6.0.3",
-    "eslint-plugin-prettier": "^2.5.0",
-    "eslint-plugin-react": "^7.6.0",
-    "flow-bin": "^0.70.0",
-    "husky": "^0.14.3",
-    "lint-staged": "^7.0.4",
-    "prettier": "^1.10.2"
+    "typescript": "^3.1.6"
   },
   "scripts": {
-    "lint": "eslint ./src",
-    "lint:fix": "eslint ./src --fix",
-    "precommit": "lint-staged",
-    "prepare": "rm -rf ./lib && babel --out-dir ./lib ./src"
-  },
-  "dependencies": {
-    "mime-types": "^2.1.17",
-    "percy-client": "^3.0.0",
-    "walk": "^2.3.9"
+    "build": "tsc"
   },
   "peerDependencies": {
     "puppeteer": ">=1.3"
   },
-  "lint-staged": {
-    "*.js": [
-      "eslint ./src --fix --color --ignore-pattern '!.*'",
-      "git add"
-    ]
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@percy/agent": "0.0.49"
   }
 }
