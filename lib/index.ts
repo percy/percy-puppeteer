@@ -23,22 +23,12 @@ export async function percySnapshot(page: any, name: string, options: any = {}) 
     throw new Error("'name' must be provided. In Mocha, this.test.fullTitle() is a good default.")
   }
   await page.addScriptTag({
-    path: require.resolve('@percy/agent/dist/public/percy-agent.js')
+    path: _agentJsFilepath()
   })
   await page.evaluate(function(name: string, options: any, clientInfo: string) {
     const percyAgentClient = new PercyAgent(clientInfo)
     percyAgentClient.snapshot(name, options)
   }, name, options, clientInfo())
-
-
-  return function (nightmare: any) {
-    nightmare
-      .inject('js', _agentJsFilepath())
-      .evaluate(function (name: string, options: any, clientInfo: string) {
-        const percyAgentClient = new PercyAgent({clientInfo})
-        percyAgentClient.snapshot(name, options)
-      }, name, options, clientInfo())
-  }
 }
 
 function _agentJsFilepath(): string {
