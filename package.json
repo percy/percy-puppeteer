@@ -15,6 +15,7 @@
     "typescript": "^3.1.6"
   },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "tsc"
   },
   "peerDependencies": {
