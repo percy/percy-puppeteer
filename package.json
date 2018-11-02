@@ -11,6 +11,7 @@
   "author": "Perceptual Inc.",
   "license": "MIT",
   "devDependencies": {
+    "@types/puppeteer": "^1.9.1",
     "typescript": "^3.1.6"
   },
   "scripts": {

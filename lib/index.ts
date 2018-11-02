@@ -1,4 +1,5 @@
 import { clientInfo } from './environment'
+import { Page } from 'puppeteer'
 
 declare var PercyAgent: any;
 
@@ -15,7 +16,7 @@ declare var PercyAgent: any;
  * @param name Name of the snapshot that we're taking. Required.
  * @param options Additional options, e.g. '{widths: [768, 992, 1200]}'. Optional.
  */
-export async function percySnapshot(page: any, name: string, options: any = {}) {
+export async function percySnapshot(page: Page, name: string, options: any = {}) {
   if (!page) {
     throw new Error("Puppeteer 'page' object must be provided.")
   }
