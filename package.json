@@ -25,6 +25,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@percy/agent": "0.0.49"
+    "@percy/agent": "^0.1.0"
   }
 }
