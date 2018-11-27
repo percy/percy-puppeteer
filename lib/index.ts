@@ -27,7 +27,7 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
     path: _agentJsFilepath()
   })
   await page.evaluate(function(name: string, options: any, clientInfo: string) {
-    const percyAgentClient = new PercyAgent(clientInfo)
+    const percyAgentClient = new PercyAgent({ clientInfo })
     percyAgentClient.snapshot(name, options)
   }, name, options, clientInfo())
 }
