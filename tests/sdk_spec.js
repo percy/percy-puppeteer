@@ -20,7 +20,14 @@ describe('@percy/puppeteer SDK', function() {
     browser = await puppeteer.launch({
       headless: true,
       timeout: 10000,
-      ignoreHTTPSErrors: true
+      ignoreHTTPSErrors: true,
+      args: [
+        '--disable-gpu',
+        '--no-sandbox',
+        '--single-process',
+        '--disable-web-security',
+        '--disable-dev-profile',
+      ],
     })
     page = await browser.newPage()
     await page.setBypassCSP(true)
@@ -78,7 +85,6 @@ describe('@percy/puppeteer SDK', function() {
   })
 
   describe('with live sites', async function() {
-
     it('snapshots HTTPS website', async function() {
       await page.goto('https://polaris.shopify.com/')
       await percySnapshot(page, this.test.fullTitle(), {
