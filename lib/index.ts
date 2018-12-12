@@ -1,4 +1,5 @@
 import { clientInfo } from './environment'
+import { agentJsFilename } from '@percy/agent'
 import { Page } from 'puppeteer'
 
 declare var PercyAgent: any;
@@ -24,18 +25,10 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
     throw new Error("'name' must be provided. In Mocha, this.test.fullTitle() is a good default.")
   }
   await page.addScriptTag({
-    path: _agentJsFilepath()
+    path: agentJsFilename()
   })
   await page.evaluate(function(name: string, options: any, clientInfo: string) {
     const percyAgentClient = new PercyAgent({ clientInfo })
     percyAgentClient.snapshot(name, options)
   }, name, options, clientInfo())
-}
-
-function _agentJsFilepath(): string {
-  try {
-    return require.resolve('@percy/agent/dist/public/percy-agent.js')
-  } catch {
-    return 'node_modules/@percy/agent/dist/public/percy-agent.js'
-  }
 }
