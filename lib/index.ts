@@ -1,5 +1,5 @@
 import { clientInfo } from './environment'
-import { agentJsFilename } from '@percy/agent'
+import { agentJsFilename, isAgentRunning, postSnapshot } from '@percy/agent'
 import { Page } from 'puppeteer'
 
 declare var PercyAgent: any;
@@ -27,8 +27,28 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
   await page.addScriptTag({
     path: agentJsFilename()
   })
-  await page.evaluate(function(name: string, options: any, clientInfo: string) {
-    const percyAgentClient = new PercyAgent({ clientInfo })
-    percyAgentClient.snapshot(name, options)
-  }, name, options, clientInfo())
+
+  if (! await isAgentRunning()) {
+    return
+  }
+
+  const domSnapshot = await page.evaluate(function(name: string, options: any) {
+    const percyAgentClient = new PercyAgent({ handleAgentCommunication: false })
+    return percyAgentClient.snapshot(name, options)
+  }, name, options)
+
+  await postDomSnapshot(name, domSnapshot, page.url(), options)
+}
+
+async function postDomSnapshot(name: string, domSnapshot: any, url: string, options: any) {
+  const postSuccess = await postSnapshot({
+    name,
+    url,
+    domSnapshot,
+    clientInfo: clientInfo(),
+    ...options
+  })
+  if (!postSuccess) {
+    console.log(`[percy] Error posting snapshot to agent`)
+  }
 }
