@@ -25,12 +25,10 @@ describe('@percy/puppeteer SDK', function() {
         '--disable-gpu',
         '--no-sandbox',
         '--single-process',
-        '--disable-web-security',
         '--disable-dev-profile',
       ],
     })
     page = await browser.newPage()
-    await page.setBypassCSP(true)
   })
 
   after(async function() {
