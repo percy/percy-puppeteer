@@ -32,13 +32,12 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
     return
   }
 
-  const domSnapshot = await page.evaluate(function(name: string, options: any, clientInfo: string) {
-    const percyAgentClient = new PercyAgent({ clientInfo, handleAgentCommunication: false })
+  const domSnapshot = await page.evaluate(function(name: string, options: any) {
+    const percyAgentClient = new PercyAgent({ handleAgentCommunication: false })
     return percyAgentClient.snapshot(name, options)
-  }, name, options, clientInfo())
+  }, name, options)
 
-  const url = await page.evaluate(() => { return document.URL })
-  await postDomSnapshot(name, domSnapshot, url, options)
+  await postDomSnapshot(name, domSnapshot, page.url(), options)
 }
 
 async function postDomSnapshot(name: string, domSnapshot: any, url: string, options: any) {
