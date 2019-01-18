@@ -1,4 +1,3 @@
-import Axios from 'axios'
 import { clientInfo } from './environment'
 import { agentJsFilename, isAgentRunning, postSnapshot } from '@percy/agent'
 import { Page } from 'puppeteer'
