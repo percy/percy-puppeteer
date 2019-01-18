@@ -1,6 +1,6 @@
 import Axios from 'axios'
 import { clientInfo } from './environment'
-import { agentJsFilename } from '@percy/agent'
+import { agentJsFilename, isAgentRunning, postSnapshot } from '@percy/agent'
 import { Page } from 'puppeteer'
 
 declare var PercyAgent: any;
@@ -29,7 +29,7 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
     path: agentJsFilename()
   })
 
-  if (!isAgentRunning()) {
+  if (! await isAgentRunning()) {
     return
   }
 
@@ -42,31 +42,15 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
   await postDomSnapshot(name, domSnapshot, url, options)
 }
 
-async function isAgentRunning() {
-  await Axios({
-    method: 'get',
-    url: 'http://localhost:5338/percy/healthcheck',
-  } as any).then(() => {
-    return true
-  }).catch((error) => {
-    return false
-  })
-}
-
 async function postDomSnapshot(name: string, domSnapshot: any, url: string, options: any) {
-  await Axios({
-    method: 'post',
-    url: 'http://localhost:5338/percy/snapshot',
-    data: {
-        name,
-        url,
-        enableJavaScript: options.enableJavaScript,
-        widths: options.widths,
-        minHeight: options.minHeight,
-        clientInfo: clientInfo(),
-        domSnapshot,
-      }
-  } as any).catch((error) => {
-    console.log(`[percy] Error posting snapshot: ${error}`)
+  const postSuccess = await postSnapshot({
+    name,
+    url,
+    domSnapshot,
+    clientInfo: clientInfo(),
+    ...options
   })
+  if (!postSuccess) {
+    console.log(`[percy] Error posting snapshot to agent`)
+  }
 }
