@@ -96,5 +96,14 @@ describe('@percy/puppeteer SDK', function() {
         widths: [768, 992, 1200],
       })
     })
+
+    // The CSP on Github as of 2/4/2019 is strict enough that we can't inject
+    // our JS into the page, making snapshotting not possible. Customers running
+    // into this problem can work around it by calling page.setBypassCSP(true) before
+    // navigating to the site to snapshot.
+    it('handles gracefully site that forbids script injection', async function() {
+      await page.goto('https://github.com/percy/percy-puppeteer')
+      await percySnapshot(page, this.test.fullTitle())
+    })
   })
 })
