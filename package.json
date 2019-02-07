@@ -1,6 +1,6 @@
 {
   "name": "@percy/puppeteer",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Percy.io integration with Google Puppeteer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
