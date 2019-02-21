@@ -96,6 +96,7 @@ describe('@percy/puppeteer SDK', function() {
       await percySnapshot(page, this.test.fullTitle(), {
         widths: [768, 992, 1200],
       })
+      await page.setBypassCSP(false)
     })
 
     // The CSP on Github as of 2/4/2019 is strict enough that we can't inject
