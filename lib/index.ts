@@ -32,7 +32,7 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
   } catch (err) {
     // Certain CSP settings prevent Puppeteer from injecting scripts. See:
     // https://github.com/GoogleChrome/puppeteer/issues/2644
-    console.log(`[percy] Could not snapshot, maybe due to stringent CSPs. Try page.setBypassCSP(true).`)
+    console.log(`[percy] Could not take snapshot named '${name}', maybe due to stringent CSPs. Try page.setBypassCSP(true).`)
     return
   }
 
