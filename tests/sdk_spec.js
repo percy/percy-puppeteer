@@ -24,7 +24,8 @@ describe('@percy/puppeteer SDK', function() {
       args: [
         '--disable-gpu',
         '--no-sandbox',
-        '--single-process',
+        // This option is helpful in low-memory environments, but does not work on Windows.
+        // '--single-process'
         '--disable-dev-profile',
       ],
     })
