@@ -26,8 +26,8 @@
     "prepublishOnly": "npm run build",
     "build": "tsc",
     "pretest": "npm run build",
-    "test": "percy exec -- mocha tests/*spec.js",
-    "test-win": "npm run pretest && percy exec -- mocha.cmd tests/*spec.js"
+    "test": "percy exec -- mocha --opts ./mocha.opts tests/*spec.js",
+    "test-win": "npm run pretest && percy exec -- mocha.cmd --opts ./mocha.opts tests/*spec.js"
   },
   "peerDependencies": {
     "puppeteer": ">=1.3"
