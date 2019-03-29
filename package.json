@@ -36,6 +36,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@percy/agent": "^0.1.12"
+    "@percy/agent": "^0.1.16"
   }
 }
