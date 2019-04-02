@@ -81,6 +81,17 @@ describe('@percy/puppeteer SDK', function() {
       itemsLeft.should.eq('0 items left')
       await percySnapshot(page, `${this.test.fullTitle()} #2`)
     })
+
+    it('snapshots part of a page', async function() {
+      await percySnapshot(page, this.test.fullTitle(), {
+        domTransformation: (documentClone) => {
+          let footerElement = documentClone.querySelector('footer.info');
+          documentClone.querySelector('body').innerHTML = footerElement.outerHTML;
+
+          return documentClone;
+        }
+      })
+    })
   })
 
   describe('with live sites', async function() {

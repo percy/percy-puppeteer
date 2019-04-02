@@ -40,8 +40,18 @@ export async function percySnapshot(page: Page, name: string, options: any = {})
     return
   }
 
-  const domSnapshot = await page.evaluate(function(name: string, options: any) {
-    const percyAgentClient = new PercyAgent({ handleAgentCommunication: false })
+  if (options.domTransformation) {
+    options.stringifiedDomTransformation = options.domTransformation.toString();
+  }
+
+  const domSnapshot = await page.evaluate(function(name: string, options:any) {
+    const percyAgentClient = new PercyAgent({
+      handleAgentCommunication: false,
+      // See here for uses and also caviats of this method of deserializing functions
+      // TLDR: `this` and named args will not be deserialized correctly with this method.
+      // https://stackoverflow.com/a/45676430
+      domTransformation: new Function('return ' + options.stringifiedDomTransformation)()
+    })
     return percyAgentClient.snapshot(name, options)
   }, name, options)
 
