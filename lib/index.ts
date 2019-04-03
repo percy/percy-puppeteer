@@ -57,6 +57,6 @@ async function postDomSnapshot(name: string, domSnapshot: any, url: string, opti
     ...options
   })
   if (!postSuccess) {
-    console.log(`[percy] Error posting snapshot to agent`)
+    console.log(`[percy] Error posting snapshot to agent.`)
   }
 }

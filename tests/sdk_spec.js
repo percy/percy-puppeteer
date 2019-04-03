@@ -83,6 +83,13 @@ describe('@percy/puppeteer SDK', function() {
     })
   })
 
+  describe('with large dom', async function() {
+    it('snapshots without error', async function() {
+      await page.goto(`${TEST_URL}/very-large-dom.html`)
+      await percySnapshot(page, this.test.fullTitle())
+    })
+  })
+
   describe('with live sites', async function() {
     it('snapshots HTTPS website', async function() {
       await page.goto('https://polaris.shopify.com/')
