@@ -15,11 +15,14 @@
   "author": "Perceptual Inc.",
   "license": "MIT",
   "devDependencies": {
+    "@semantic-release/changelog": "^3.0.2",
+    "@semantic-release/git": "^7.0.8",
     "@types/puppeteer": "^1.9.1",
     "chai": "^4.2.0",
     "http-server": "^0.11.1",
     "mocha": "^6.0.2",
     "puppeteer": "^1.11.0",
+    "semantic-release": "^15.13.3",
     "typescript": "^3.1.6"
   },
   "scripts": {
@@ -37,5 +40,19 @@
   },
   "dependencies": {
     "@percy/agent": "^0.1.18"
+  },
+  "release": {
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      [
+        "@semantic-release/changelog",
+        {
+          "changelogFile": "CHANGELOG.md"
+        }
+      ],
+      "@semantic-release/npm",
+      "@semantic-release/git"
+    ]
   }
 }
