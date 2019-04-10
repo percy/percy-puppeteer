@@ -91,29 +91,20 @@ describe('@percy/puppeteer SDK', function() {
   })
 
   describe('with live sites', async function() {
-    it('snapshots HTTPS website', async function() {
-      await page.goto('https://polaris.shopify.com/')
-      await percySnapshot(page, this.test.fullTitle(), {
-        widths: [768, 992, 1200],
-      })
-    })
-
-    it('snapshots website with strict CSP', async function() {
-      await page.setBypassCSP(true)
-      await page.goto('https://buildkite.com/')
-      await percySnapshot(page, this.test.fullTitle(), {
-        widths: [768, 992, 1200],
-      })
-      await page.setBypassCSP(false)
-    })
-
-    // The CSP on Github as of 2/4/2019 is strict enough that we can't inject
-    // our JS into the page, making snapshotting not possible. Customers running
-    // into this problem can work around it by calling page.setBypassCSP(true) before
-    // navigating to the site to snapshot.
-    it('handles gracefully site that forbids script injection', async function() {
-      await page.goto('https://github.com/percy/percy-puppeteer')
+    it('snapshots a website with HTTP', async function() {
+      await page.goto('http://example.com/')
       await percySnapshot(page, this.test.fullTitle())
+    })
+
+    it('snapshots a website with HTTPS, strict CSP, CORS and HSTS setup', async function() {
+      // Some CSPs are strict enough that we can't inject
+      // our JS into the page, making snapshotting not possible. Customers running
+      // into this problem can work around it by calling page.setBypassCSP(true) before
+      // navigating to the site to snapshot.
+      await page.setBypassCSP(true)
+      await page.goto('https://sdk-test.percy.dev')
+      await percySnapshot(page, this.test.fullTitle())
+      await page.setBypassCSP(false)
     })
   })
 })
