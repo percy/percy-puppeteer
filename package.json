@@ -39,7 +39,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@percy/agent": "^0.3.1"
+    "@percy/agent": "^0.4.0"
   },
   "release": {
     "plugins": [
