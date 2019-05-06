@@ -30,7 +30,9 @@
     "build": "tsc",
     "pretest": "npm run build",
     "test": "percy exec -- mocha --opts ./mocha.opts tests/*spec.js",
-    "test-win": "npm run pretest && percy exec -- mocha.cmd --opts ./mocha.opts tests/*spec.js"
+    "test-win": "npm run pretest && percy exec -- mocha.cmd --opts ./mocha.opts tests/*spec.js",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "peerDependencies": {
     "puppeteer": ">=1.3"
@@ -39,7 +41,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@percy/agent": "~0"
+    "@percy/agent": "~0",
+    "snyk": "^1.161.1"
   },
   "release": {
     "plugins": [
@@ -54,5 +57,6 @@
       "@semantic-release/npm",
       "@semantic-release/git"
     ]
-  }
+  },
+  "snyk": true
 }
