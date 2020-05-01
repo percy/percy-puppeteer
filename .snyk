@@ -1,0 +1,14 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.14.1
+ignore: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  SNYK-JS-LODASH-567746:
+    - '@percy/agent > @oclif/plugin-not-found > lodash':
+        patched: '2020-05-01T00:42:05.947Z'
+    - '@percy/agent > @oclif/plugin-not-found > cli-ux > lodash':
+        patched: '2020-05-01T00:42:05.947Z'
+    - '@percy/agent > winston > async > lodash':
+        patched: '2020-05-01T00:42:05.947Z'
+    - '@percy/agent > percy-client > request-promise > request-promise-core > lodash':
+        patched: '2020-05-01T00:42:05.947Z'
