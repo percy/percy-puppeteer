@@ -19,5 +19,3 @@ jobs:
           command: "mocha --opts ./mocha.opts tests/*spec.js"
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
-
-  release:
