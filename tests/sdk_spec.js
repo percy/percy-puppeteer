@@ -1,9 +1,9 @@
 const should = require('chai').should()
-const puppeteer = require('puppeteer')
+const playwright = require('playwright')
 const httpServer = require('http-server')
 const { percySnapshot } = require('../dist')
 
-describe('@percy/puppeteer SDK', function() {
+describe('percy-playwright SDK', function() {
   const PORT = 8000
   const TEST_URL = `http://localhost:${PORT}`
 
@@ -16,8 +16,8 @@ describe('@percy/puppeteer SDK', function() {
     server = httpServer.createServer({ root: `${__dirname}/testapp` })
     server.listen(PORT)
 
-    // Create a new Puppeteer browser instance.
-    browser = await puppeteer.launch({
+    // Create a new Playwright browser instance.
+    browser = await playwright.chromium.launch({
       headless: true,
       timeout: 10000,
       ignoreHTTPSErrors: true,
@@ -33,7 +33,7 @@ describe('@percy/puppeteer SDK', function() {
   })
 
   after(async function() {
-    // Close the Puppeteer session.
+    // Close the Playwright session.
     browser.close()
 
     // Shut down the HTTP server.
@@ -97,14 +97,8 @@ describe('@percy/puppeteer SDK', function() {
     })
 
     it('snapshots a website with HTTPS, strict CSP, CORS and HSTS setup', async function() {
-      // Some CSPs are strict enough that we can't inject
-      // our JS into the page, making snapshotting not possible. Customers running
-      // into this problem can work around it by calling page.setBypassCSP(true) before
-      // navigating to the site to snapshot.
-      await page.setBypassCSP(true)
       await page.goto('https://sdk-test.percy.dev')
       await percySnapshot(page, this.test.fullTitle())
-      await page.setBypassCSP(false)
     })
   })
 })
