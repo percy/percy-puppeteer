@@ -2,16 +2,19 @@ name: CI
 on: [push, pull_request]
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-2019]
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
+        with:
+          node-version: 12
       - uses: microsoft/playwright-github-action@v1
-
-      - name: Install
-        run: yarn
-      - name: Build
-        run: yarn build
+      
+      - run: yarn
+      - run: yarn build
         
       - name: Percy Test
         uses: percy/exec-action@master
