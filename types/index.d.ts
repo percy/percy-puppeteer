@@ -1,8 +1,8 @@
+import * as Puppeteer from 'puppeteer-core/lib/cjs/puppeteer/common/Page';
 import { SnapshotOptions } from '@percy/core';
-import { Page } from 'puppeteer';
 
 export default function percySnapshot(
-  page: Page,
+  page: Puppeteer.Page,
   name: string,
   options?: SnapshotOptions
 ): Promise<void>;
