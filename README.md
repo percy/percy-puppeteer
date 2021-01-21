@@ -75,6 +75,22 @@ $ percy exec -- node script.js
 
 ## Upgrading
 
+### Import change
+
+In `v1.x` there wasn't a default export of the package (only a named
+export). With `v2.x` the named export is removed and there is only a default
+export.
+
+``` javascript
+// old
+import { percySnapshot } from '@percy/puppeteer';
+const { percySnapshot } = require('@percy/puppeteer');
+
+// new
+import percySnapshot from '@percy/puppeteer';
+const percySnapshot = require('@percy/puppeteer');
+```
+
 ### Migrating Config
 
 If you have a previous Percy configuration file, migrate it to the newest version with the
