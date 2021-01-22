@@ -1,7 +1,7 @@
 {
   "name": "@percy/puppeteer",
   "description": "Pupppeteer client library for visual testing with Percy",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "license": "MIT",
   "author": "Perceptual Inc.",
   "repository": "https://github.com/percy/percy-puppeteer",
