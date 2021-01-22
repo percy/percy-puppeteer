@@ -1,4 +1,4 @@
-import * as Puppeteer from 'puppeteer-core/lib/cjs/puppeteer/common/Page';
+import * as Puppeteer from 'puppeteer';
 import { SnapshotOptions } from '@percy/core';
 
 export default function percySnapshot(
