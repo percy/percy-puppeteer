@@ -1,5 +1,5 @@
 import { expectType, expectError } from 'tsd';
-import * as Puppeteer from 'puppeteer-core/lib/cjs/puppeteer/common/Page';
+import * as Puppeteer from 'puppeteer';
 import percySnapshot from '.';
 
 declare const page: Puppeteer.Page;
