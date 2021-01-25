@@ -11,6 +11,7 @@ async function percySnapshot(page, name, options) {
   if (!page) throw new Error('A Puppeteer `page` object is required.');
   if (!name) throw new Error('The `name` argument is required.');
   if (!(await utils.isPercyEnabled())) return;
+  let log = utils.logger('puppeteer');
 
   try {
     // Inject the DOM serialization script
@@ -33,8 +34,8 @@ async function percySnapshot(page, name, options) {
       name
     });
   } catch (err) {
-    utils.log('error', `Could not take DOM snapshot "${name}"`);
-    utils.log('error', err);
+    log.error(`Could not take DOM snapshot "${name}"`);
+    log.error(err);
   }
 }
 
