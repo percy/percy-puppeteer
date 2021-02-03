@@ -26,13 +26,13 @@
     "test:types": "tsd"
   },
   "dependencies": {
-    "@percy/sdk-utils": "^1.0.0-beta.30"
+    "@percy/sdk-utils": "^1.0.0-beta.32"
   },
   "peerDependencies": {
     "puppeteer": ">=1"
   },
   "devDependencies": {
-    "@percy/cli": "^1.0.0-beta.30",
+    "@percy/cli": "^1.0.0-beta.32",
     "@types/puppeteer": "^5.4.2",
     "cross-env": "^7.0.2",
     "eslint": "^7.18.0",
