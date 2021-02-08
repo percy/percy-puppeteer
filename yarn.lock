@@ -464,17 +464,17 @@
   dependencies:
     dotenv "^8.2.0"
 
-"@percy/logger@^1.0.0-beta.32":
-  version "1.0.0-beta.32"
-  resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.0.0-beta.32.tgz#56f8b22b032751e654b7f0404b3cf7df733c5dd3"
-  integrity sha512-nFvc3zDe34lWYIhWZIEeGGxY/KR3r7s3uhqreg+mtg3TL5O1kN8oNslN0jpMkonWpDtqlWDiXVPq93Yl3n1Trg==
+"@percy/logger@^1.0.0-beta.32", "@percy/logger@^1.0.0-beta.34":
+  version "1.0.0-beta.34"
+  resolved "https://registry.yarnpkg.com/@percy/logger/-/logger-1.0.0-beta.34.tgz#10a6baaae35d61f49c4e87803e76418fa7f0a20c"
+  integrity sha512-gy9GsHa8LmN/nHwzDvmDEDEUVqg+xsfmfYOhj8RFzhqJ7jp6E/qWeHJPzTx6i+iroQJ6bbfzbRxWN3tOH5yjvg==
 
 "@percy/sdk-utils@^1.0.0-beta.32":
-  version "1.0.0-beta.32"
-  resolved "https://registry.yarnpkg.com/@percy/sdk-utils/-/sdk-utils-1.0.0-beta.32.tgz#2bbe215e770c282da8bb424be231ea1cd94eff0f"
-  integrity sha512-Np3cknSZ10FewoIXZJVfiWpYbOFL11SmdRfTaF8tlaSbCdbNwoDc+mAzmlBC9qJ7ud188Z000Lfj+G7mwqS+Yg==
+  version "1.0.0-beta.34"
+  resolved "https://registry.yarnpkg.com/@percy/sdk-utils/-/sdk-utils-1.0.0-beta.34.tgz#66efc4483df4870f2ad9850ba1f4ecdd0b177402"
+  integrity sha512-vMo4oQ2wr2dWnQNhdRpJ01zkK72N1mSaZRm1y4GepRGl1mMng7KuC1c9QQmsLECxuX24u2vP58a6445uHltJaw==
   dependencies:
-    "@percy/logger" "^1.0.0-beta.32"
+    "@percy/logger" "^1.0.0-beta.34"
 
 "@sindresorhus/is@^0.14.0":
   version "0.14.0"
