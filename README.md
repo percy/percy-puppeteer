@@ -77,9 +77,8 @@ $ percy exec -- node script.js
 
 ### Automatically with `@percy/migrate`
 
-We have built a package to help automate migrating to the new CLI
-toolchain. Migrating can be done by running the following commands and following
-the prompts:
+We built a tool to help automate migrating to the new CLI toolchain! Migrating 
+can be done by running the following commands and following the prompts:
 
 ``` shell
 $ npx @percy/migrate
