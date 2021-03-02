@@ -75,7 +75,25 @@ $ percy exec -- node script.js
 
 ## Upgrading
 
-### Import change
+### Automatically with `@percy/migrate`
+
+We have built a package to help automate migrating to the new CLI
+toolchain. Migrating can be done by running the following commands and following
+the prompts:
+
+``` shell
+$ npx @percy/migrate
+? Are you currently using @percy/puppeteer? Yes
+? Install @percy/cli (required to run percy)? Yes
+? Migrate Percy config file? Yes
+? Upgrade SDK to @percy/puppeteer@2.0.0? Yes
+```
+
+This will automatically run the changes described below for you.
+
+### Manually
+
+#### Import change
 
 In `v1.x` there wasn't a default export of the package (only a named
 export). With `v2.x` the named export is removed and there is only a default
@@ -91,7 +109,7 @@ import percySnapshot from '@percy/puppeteer';
 const percySnapshot = require('@percy/puppeteer');
 ```
 
-### Migrating Config
+#### Migrating Config
 
 If you have a previous Percy configuration file, migrate it to the newest version with the
 [`config:migrate`](https://github.com/percy/cli/tree/master/packages/cli-config#percy-configmigrate-filepath-output) command:
