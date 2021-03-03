@@ -6,8 +6,6 @@
 
 ## Installation
 
-Using npm:
-
 ```sh-session
 $ npm install --save-dev @percy/cli @percy/puppeteer
 ```
