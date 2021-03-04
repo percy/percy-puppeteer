@@ -6,14 +6,6 @@
 
 ## Installation
 
-Using yarn:
-
-```sh-session
-$ yarn add --dev @percy/cli @percy/puppeteer
-```
-
-Using npm:
-
 ```sh-session
 $ npm install --save-dev @percy/cli @percy/puppeteer
 ```
@@ -77,7 +69,7 @@ $ percy exec -- node script.js
 
 ### Automatically with `@percy/migrate`
 
-We built a tool to help automate migrating to the new CLI toolchain! Migrating 
+We built a tool to help automate migrating to the new CLI toolchain! Migrating
 can be done by running the following commands and following the prompts:
 
 ``` shell
