@@ -17,7 +17,7 @@
     "types/index.d.ts"
   ],
   "engines": {
-    "node": ">=12"
+    "node": ">=14"
   },
   "scripts": {
     "lint": "eslint --ignore-path .gitignore .",
@@ -26,13 +26,13 @@
     "test:types": "tsd"
   },
   "dependencies": {
-    "@percy/sdk-utils": "^1.0.0-beta.65"
+    "@percy/sdk-utils": "^1.0.0"
   },
   "peerDependencies": {
     "puppeteer": ">=1"
   },
   "devDependencies": {
-    "@percy/core": "^1.0.0-beta.65",
+    "@percy/core": "^1.0.0",
     "@types/puppeteer": "^5.4.2",
     "cross-env": "^7.0.2",
     "eslint": "^7.18.0",

@@ -1,7 +1,7 @@
-const expect = require('expect');
-const puppeteer = require('puppeteer');
-const helpers = require('@percy/sdk-utils/test/helpers');
-const percySnapshot = require('..');
+import expect from 'expect';
+import puppeteer from 'puppeteer';
+import helpers from '@percy/sdk-utils/test/helpers';
+import percySnapshot from '../index.js';
 
 describe('percySnapshot', () => {
   let browser, page;
