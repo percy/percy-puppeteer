@@ -1,3 +1,5 @@
+const utils = require('@percy/sdk-utils');
+
 // Collect client and environment information
 const sdkPkg = require('./package.json');
 const puppeteerPkg = require('puppeteer/package.json');
@@ -6,8 +8,6 @@ const ENV_INFO = `${puppeteerPkg.name}/${puppeteerPkg.version}`;
 
 // Take a DOM snapshot and post it to the snapshot endpoint
 async function percySnapshot(page, name, options) {
-  let utils = await import('@percy/sdk-utils');
-
   if (!page) throw new Error('A Puppeteer `page` object is required.');
   if (!name) throw new Error('The `name` argument is required.');
   if (!(await utils.isPercyEnabled())) return;
