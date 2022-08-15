@@ -21,7 +21,7 @@
   },
   "scripts": {
     "lint": "eslint --ignore-path .gitignore .",
-    "test": "cross-env NODE_ENV=test mocha",
+    "test": "cross-env NODE_ENV=test percy exec --testing -- mocha",
     "test:coverage": "nyc yarn test",
     "test:types": "tsd"
   },
@@ -32,7 +32,7 @@
     "puppeteer": ">=1"
   },
   "devDependencies": {
-    "@percy/core": "^1.1.2",
+    "@percy/cli": "^1.9.1",
     "@types/puppeteer": "^5.4.2",
     "cross-env": "^7.0.2",
     "eslint": "^7.18.0",
