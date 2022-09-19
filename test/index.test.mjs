@@ -1,4 +1,3 @@
-// import expect from 'expect';
 import puppeteer from 'puppeteer';
 import helpers from '@percy/sdk-utils/test/helpers';
 import percySnapshot from '../index.js';
