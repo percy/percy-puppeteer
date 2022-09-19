@@ -1,4 +1,4 @@
-import expect from 'expect';
+// import expect from 'expect';
 import puppeteer from 'puppeteer';
 import helpers from '@percy/sdk-utils/test/helpers';
 import percySnapshot from '../index.js';
@@ -6,12 +6,11 @@ import percySnapshot from '../index.js';
 describe('percySnapshot', () => {
   let browser, page;
 
-  before(async function() {
-    this.timeout(0);
+  beforeAll(async function() {
     browser = await puppeteer.launch();
   });
 
-  after(async () => {
+  afterAll(async () => {
     await browser.close();
   });
 
@@ -22,13 +21,13 @@ describe('percySnapshot', () => {
   });
 
   it('throws an error when a page is not provided', async () => {
-    await expect(percySnapshot())
-      .rejects.toThrow('A Puppeteer `page` object is required.');
+    await expectAsync(percySnapshot())
+      .toBeRejectedWith(new Error('A Puppeteer `page` object is required.'));
   });
 
   it('throws an error when a name is not provided', async () => {
-    await expect(percySnapshot(page))
-      .rejects.toThrow('The `name` argument is required.');
+    await expectAsync(percySnapshot(page))
+      .toBeRejectedWith(new Error('The `name` argument is required.'));
   });
 
   it('disables snapshots when the healthcheck fails', async () => {
@@ -37,7 +36,7 @@ describe('percySnapshot', () => {
     await percySnapshot(page, 'Snapshot 1');
     await percySnapshot(page, 'Snapshot 2');
 
-    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
       'Percy is not running, disabling snapshots'
     ]));
   });
@@ -46,12 +45,12 @@ describe('percySnapshot', () => {
     await percySnapshot(page, 'Snapshot 1');
     await percySnapshot(page, 'Snapshot 2');
 
-    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
       'Snapshot found: Snapshot 1',
       'Snapshot found: Snapshot 2',
       `- url: ${helpers.testSnapshotURL}`,
-      expect.stringMatching(/clientInfo: @percy\/puppeteer\/.+/),
-      expect.stringMatching(/environmentInfo: puppeteer\/.+/)
+      jasmine.stringMatching(/clientInfo: @percy\/puppeteer\/.+/),
+      jasmine.stringMatching(/environmentInfo: puppeteer\/.+/)
     ]));
   });
 
@@ -60,7 +59,7 @@ describe('percySnapshot', () => {
 
     await percySnapshot(page, 'Snapshot 1');
 
-    expect(await helpers.get('logs')).toEqual(expect.arrayContaining([
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
       'Could not take DOM snapshot "Snapshot 1"'
     ]));
   });

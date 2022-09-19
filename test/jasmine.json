@@ -1,0 +1,8 @@
+{
+  "spec_dir": "test",
+  "spec_files": ["**/*.test.mjs"],
+  "random": false,
+  "helpers": [
+    "setup.mjs"
+  ]
+}

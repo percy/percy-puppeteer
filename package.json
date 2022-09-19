@@ -21,7 +21,7 @@
   },
   "scripts": {
     "lint": "eslint --ignore-path .gitignore .",
-    "test": "cross-env NODE_ENV=test percy exec --testing -- mocha",
+    "test": "cross-env NODE_ENV=test percy exec --testing -- jasmine --config=./test/jasmine.json",
     "test:coverage": "nyc yarn test",
     "test:types": "tsd"
   },
@@ -42,7 +42,8 @@
     "eslint-plugin-promise": "^5.1.0",
     "eslint-plugin-standard": "^5.0.0",
     "expect": "^27.0.2",
-    "mocha": "^10.0.0",
+    "jasmine": "^4.4.0",
+    "jasmine-spec-reporter": "^7.0.0",
     "nyc": "^15.1.0",
     "puppeteer": "^17.0.0",
     "tsd": "^0.24.1"
