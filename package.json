@@ -44,7 +44,7 @@
     "jasmine": "^4.4.0",
     "jasmine-spec-reporter": "^7.0.0",
     "nyc": "^15.1.0",
-    "puppeteer": "^19.0.0",
+    "puppeteer": "^20.6.0",
     "tsd": "^0.24.1"
   }
 }
