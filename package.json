@@ -41,7 +41,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",
     "eslint-plugin-standard": "^5.0.0",
-    "jasmine": "^4.4.0",
+    "jasmine": "^5.0.1",
     "jasmine-spec-reporter": "^7.0.0",
     "nyc": "^15.1.0",
     "puppeteer": "^19.0.0",
