@@ -242,6 +242,13 @@
   resolved "https://registry.yarnpkg.com/@istanbuljs/schema/-/schema-0.1.2.tgz#26520bf09abe4a5644cd5414e37125a8954241dd"
   integrity sha512-tsAQNx32a8CoFhjhijUIhI4kccIAgmGhy8LZMZgGfmXcpMbPRUqn5LWmgRttILi6yeGmBJd2xsPkFMs0PzgPCw==
 
+"@jest/schemas@^29.6.3":
+  version "29.6.3"
+  resolved "https://registry.yarnpkg.com/@jest/schemas/-/schemas-29.6.3.tgz#430b5ce8a4e0044a7e3819663305a7b3091c8e03"
+  integrity sha512-mo5j5X+jIZmJQveBKeS/clAueipV7KgiX1vMgCxam1RNYiqE1w62n0/tJJnHtjW8ZHcQco5gY85jA3mi0L+nSA==
+  dependencies:
+    "@sinclair/typebox" "^0.27.8"
+
 "@nodelib/fs.scandir@2.1.3":
   version "2.1.3"
   resolved "https://registry.yarnpkg.com/@nodelib/fs.scandir/-/fs.scandir-2.1.3.tgz#3a582bdb53804c6ba6d146579c46e52130cf4a3b"
@@ -392,10 +399,15 @@
   resolved "https://registry.yarnpkg.com/@percy/sdk-utils/-/sdk-utils-1.16.0.tgz#d5076d83701e9dad9383283877e63f433165d051"
   integrity sha512-/nPyK4NCjFGYNVQ7vOivfuEYveOJhA4gWzB7w2PjCkw/Y3kCtu+axRpUiDPEybTz2H6RTvr+I526DbtUYguqVw==
 
-"@tsd/typescript@~4.8.3":
-  version "4.8.3"
-  resolved "https://registry.yarnpkg.com/@tsd/typescript/-/typescript-4.8.3.tgz#10f04aef9217e0a516947ddc4c457687d6482d6c"
-  integrity sha512-ytRZWmXF0i4VFSG8NQ67NUDQ3NGe3E4oByFrxH8eJyW5uBOM5juIdXCg81OY/IcK81qHCzrvGEo8tujlIQbexw==
+"@sinclair/typebox@^0.27.8":
+  version "0.27.8"
+  resolved "https://registry.yarnpkg.com/@sinclair/typebox/-/typebox-0.27.8.tgz#6667fac16c436b5434a387a34dedb013198f6e6e"
+  integrity sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==
+
+"@tsd/typescript@~5.3.3":
+  version "5.3.3"
+  resolved "https://registry.yarnpkg.com/@tsd/typescript/-/typescript-5.3.3.tgz#bc01854b6e0e746b5f70a6b48c30c7b95b81a74e"
+  integrity sha512-CQlfzol0ldaU+ftWuG52vH29uRoKboLinLy84wS8TQOu+m+tWoaUfk4svL4ij2V8M5284KymJBlHUusKj6k34w==
 
 "@types/color-name@^1.1.1":
   version "1.1.1"
@@ -535,6 +547,11 @@ ansi-styles@^4.0.0, ansi-styles@^4.1.0:
   dependencies:
     "@types/color-name" "^1.1.1"
     color-convert "^2.0.1"
+
+ansi-styles@^5.0.0:
+  version "5.2.0"
+  resolved "https://registry.yarnpkg.com/ansi-styles/-/ansi-styles-5.2.0.tgz#07449690ad45777d1924ac2abb2fc8895dba836b"
+  integrity sha512-Cxwpt2SfTzTtXcfOlzGEee8O+c+MmUgGrNiBcXnuWxuFJHe6a5Hz7qwhwe5OgaSYI0IJvkLqWX1ASG+cJOkEiA==
 
 append-transform@^2.0.0:
   version "2.0.0"
@@ -854,6 +871,11 @@ devtools-protocol@0.0.1056733:
   version "0.0.1056733"
   resolved "https://registry.yarnpkg.com/devtools-protocol/-/devtools-protocol-0.0.1056733.tgz#55bb1d56761014cc221131cca5e6bad94eefb2b9"
   integrity sha512-CmTu6SQx2g3TbZzDCAV58+LTxVdKplS7xip0g5oDXpZ+isr0rv5dDP8ToyVRywzPHkCCPKgKgScEcwz4uPWDIA==
+
+diff-sequences@^29.6.3:
+  version "29.6.3"
+  resolved "https://registry.yarnpkg.com/diff-sequences/-/diff-sequences-29.6.3.tgz#4deaf894d11407c51efc8418012f9e70b84ea921"
+  integrity sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==
 
 dir-glob@^3.0.1:
   version "3.0.1"
@@ -1749,6 +1771,21 @@ jasmine@^4.4.0:
     glob "^7.1.6"
     jasmine-core "^4.5.0"
 
+jest-diff@^29.0.3:
+  version "29.7.0"
+  resolved "https://registry.yarnpkg.com/jest-diff/-/jest-diff-29.7.0.tgz#017934a66ebb7ecf6f205e84699be10afd70458a"
+  integrity sha512-LMIgiIrhigmPrs03JHpxUh2yISK3vLFPkAodPeo0+BuF7wA2FoQbkEg1u8gBYBThncu7e1oEDUfIXVuTqLRUjw==
+  dependencies:
+    chalk "^4.0.0"
+    diff-sequences "^29.6.3"
+    jest-get-type "^29.6.3"
+    pretty-format "^29.7.0"
+
+jest-get-type@^29.6.3:
+  version "29.6.3"
+  resolved "https://registry.yarnpkg.com/jest-get-type/-/jest-get-type-29.6.3.tgz#36f499fdcea197c1045a127319c0481723908fd1"
+  integrity sha512-zrteXnqYxfQh7l5FHyL38jL39di8H8rHoecLH3JNxH3BwOrBsNeabdap5e0I23lD4HHI8W5VFBZqG4Eaq5LNcw==
+
 js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
@@ -2241,6 +2278,15 @@ prelude-ls@^1.2.1:
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.2.1.tgz#debc6489d7a6e6b0e7611888cec880337d316396"
   integrity sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==
 
+pretty-format@^29.7.0:
+  version "29.7.0"
+  resolved "https://registry.yarnpkg.com/pretty-format/-/pretty-format-29.7.0.tgz#ca42c758310f365bfa71a0bda0a807160b776812"
+  integrity sha512-Pdlw/oPxN+aXdmM9R00JVC9WVFoCLTKJvDVLgmJ+qAffBMxsV85l/Lu7sNx4zSzPyoL2euImuEwHhOXdEgNFZQ==
+  dependencies:
+    "@jest/schemas" "^29.6.3"
+    ansi-styles "^5.0.0"
+    react-is "^18.0.0"
+
 process-on-spawn@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/process-on-spawn/-/process-on-spawn-1.0.0.tgz#95b05a23073d30a17acfdc92a440efd2baefdc93"
@@ -2310,6 +2356,11 @@ quick-lru@^4.0.1:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/quick-lru/-/quick-lru-4.0.1.tgz#5b8878f113a58217848c6482026c73e1ba57727f"
   integrity sha512-ARhCpm70fzdcvNQfPoy49IaanKkTlRWF2JMzqhcJbhSFRZv7nPTvZJdcY7301IPmvW+/p0RgIWnQDLJxifsQ7g==
+
+react-is@^18.0.0:
+  version "18.2.0"
+  resolved "https://registry.yarnpkg.com/react-is/-/react-is-18.2.0.tgz#199431eeaaa2e09f86427efbb4f1473edb47609b"
+  integrity sha512-xWGDIW6x921xtzPkhiULtthJHoJvBbF3q26fzloPCK0hsvxtPVelvftw3zjbHWSkR2km9Z+4uxbDDK/6Zw9B8w==
 
 read-pkg-up@^7.0.0, read-pkg-up@^7.0.1:
   version "7.0.1"
@@ -2707,14 +2758,15 @@ tsconfig-paths@^3.14.1:
     minimist "^1.2.6"
     strip-bom "^3.0.0"
 
-tsd@^0.24.1:
-  version "0.24.1"
-  resolved "https://registry.yarnpkg.com/tsd/-/tsd-0.24.1.tgz#10c596acf7278182d3ca142b902ca9a62b1f13ef"
-  integrity sha512-sD+s81/2aM4RRhimCDttd4xpBNbUFWnoMSHk/o8kC8Ek23jljeRNWjsxFJmOmYLuLTN9swRt1b6iXfUXTcTiIA==
+tsd@^0.30.3:
+  version "0.30.3"
+  resolved "https://registry.yarnpkg.com/tsd/-/tsd-0.30.3.tgz#8dbec4ae313408604db507c22f7f325c664ed234"
+  integrity sha512-xoEp6JPqpT9Ti9wGX5qgy7URp0lrmxN7YkbsyphBzdc1SYiXvJYgRXSIVvSZz42+/Wd/R1kBOMbgGC6rtiKxqQ==
   dependencies:
-    "@tsd/typescript" "~4.8.3"
+    "@tsd/typescript" "~5.3.3"
     eslint-formatter-pretty "^4.1.0"
     globby "^11.0.1"
+    jest-diff "^29.0.3"
     meow "^9.0.0"
     path-exists "^4.0.0"
     read-pkg-up "^7.0.0"
