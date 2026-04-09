@@ -7,16 +7,35 @@ const CLIENT_INFO = `${sdkPkg.name}/${sdkPkg.version}`;
 const ENV_INFO = `${puppeteerPkg.name}/${puppeteerPkg.version}`;
 const log = utils.logger('puppeteer');
 
+const UNSUPPORTED_IFRAME_SRCS = [
+  'about:blank',
+  'about:srcdoc',
+  'javascript:',
+  'data:',
+  'blob:',
+  'vbscript:',
+  'chrome:',
+  'chrome-extension:'
+];
+
+function isUnsupportedIframeSrc(src) {
+  if (!src) return true;
+  return UNSUPPORTED_IFRAME_SRCS.some(prefix => src === prefix || src.startsWith(prefix));
+}
+
 // Processes a single cross-origin frame to capture its snapshot and resources.
 async function processFrame(page, frame, options, percyDOM) {
   const frameUrl = frame.url();
+  log.debug(`Processing cross-origin iframe: ${frameUrl}`);
 
   /* istanbul ignore next: browser-executed iframe serialization */
   const iframeSnapshot = await frame.evaluate((opts) => {
     /* eslint-disable-next-line no-undef */
     return PercyDOM.serialize(opts);
   }, { ...options, enableJavascript: true });
+  log.debug(`Serialized cross-origin iframe: ${frameUrl}`);
 
+  // Get the iframe's element data from the main page context
   /* istanbul ignore next: browser-executed evaluation function */
   const iframeData = await page.evaluate((fUrl) => {
     const iframes = Array.from(document.querySelectorAll('iframe'));
@@ -28,6 +47,12 @@ async function processFrame(page, frame, options, percyDOM) {
     }
   }, frameUrl);
 
+  if (!iframeData?.percyElementId) {
+    log.debug(`Skipping frame ${frameUrl}: no data-percy-element-id found`);
+    return null;
+  }
+
+  log.debug(`Successfully captured cross-origin iframe: ${frameUrl} (percyElementId: ${iframeData.percyElementId})`);
   return {
     iframeData,
     iframeSnapshot,
@@ -44,26 +69,51 @@ async function captureSerializedDOM(page, options, percyDOM) {
 
   // Process cross-origin iframes
   const pageUrl = new URL(page.url());
-  const crossOriginFrames = page.frames()
+  const allFrames = page.frames();
+  log.debug(`Found ${allFrames.length} total frame(s) on page`);
+
+  const crossOriginFrames = allFrames
     .filter(frame => {
       const frameUrl = frame.url();
-      if (!frameUrl || frameUrl === 'about:blank') return false;
+      if (!frameUrl || isUnsupportedIframeSrc(frameUrl)) {
+        if (frameUrl) log.debug(`Skipping unsupported iframe src: ${frameUrl}`);
+        return false;
+      }
       try {
-        return new URL(frameUrl).origin !== pageUrl.origin;
+        const isCrossOrigin = new URL(frameUrl).origin !== pageUrl.origin;
+        if (!isCrossOrigin) log.debug(`Skipping same-origin iframe: ${frameUrl}`);
+        return isCrossOrigin;
       } catch {
+        log.debug(`Skipping iframe with invalid URL: ${frameUrl}`);
         return false;
       }
     });
 
-  // Inject Percy DOM into all cross-origin frames before processing them
-  await Promise.all(crossOriginFrames.map(frame =>
-    frame.evaluate(percyDOM).catch(e =>
-      log.debug(`Failed to inject PercyDOM into frame ${frame.url()}: ${e.message}`)
-    )
+  log.debug(`Found ${crossOriginFrames.length} cross-origin iframe(s) to process`);
+
+  // Inject Percy DOM into cross-origin frames, track which succeed
+  const injectResults = await Promise.all(crossOriginFrames.map(frame =>
+    frame.evaluate(percyDOM)
+      .then(() => {
+        log.debug(`Injected PercyDOM into frame: ${frame.url()}`);
+        return { frame, success: true };
+      })
+      .catch(e => {
+        log.debug(`Failed to inject PercyDOM into frame ${frame.url()}: ${e.message}`);
+        return { frame, success: false };
+      })
   ));
 
+  const injectableFrames = injectResults
+    .filter(r => r.success)
+    .map(r => r.frame);
+
+  if (injectableFrames.length < crossOriginFrames.length) {
+    log.debug(`PercyDOM injection failed for ${crossOriginFrames.length - injectableFrames.length} frame(s)`);
+  }
+
   const processedFrames = (await Promise.all(
-    crossOriginFrames.map(frame =>
+    injectableFrames.map(frame =>
       processFrame(page, frame, options, percyDOM).catch(e => {
         log.debug(`Failed to process cross-origin frame ${frame.url()}: ${e.message}`);
         return null;
@@ -73,6 +123,7 @@ async function captureSerializedDOM(page, options, percyDOM) {
 
   if (processedFrames.length > 0) {
     domSnapshot.corsIframes = processedFrames;
+    log.debug(`Captured ${processedFrames.length} cross-origin iframe(s)`);
   }
 
   // Capture cookies

@@ -67,9 +67,11 @@ describe('percySnapshot', () => {
 
 describe('cross-origin iframe handling', () => {
   let mockPage;
+  let lastPostedSnapshot;
 
   beforeEach(async () => {
     await helpers.setupTest();
+    lastPostedSnapshot = null;
   });
 
   function buildMockPage({ pageUrl, pageHtml, frames = [] }) {
@@ -101,8 +103,8 @@ describe('cross-origin iframe handling', () => {
         if (fnStr.includes('querySelectorAll') && fnStr.includes('iframe')) {
           const frameUrl = args[0];
           const matchingFrame = frames.find(f => f.url.startsWith(frameUrl) || frameUrl.startsWith(f.url));
-          if (matchingFrame) {
-            return { percyElementId: matchingFrame.percyElementId || `percy-ele-${frames.indexOf(matchingFrame)}` };
+          if (matchingFrame && matchingFrame.percyElementId) {
+            return { percyElementId: matchingFrame.percyElementId };
           }
           return undefined;
         }
@@ -124,9 +126,14 @@ describe('cross-origin iframe handling', () => {
 
     await percySnapshot(page, 'No Iframes');
 
-    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+    const logs = await helpers.get('logs');
+    expect(logs).toEqual(jasmine.arrayContaining([
       'Snapshot found: No Iframes'
     ]));
+
+    // Verify no corsIframes key in the posted snapshot
+    const requestLogs = logs.join('\n');
+    expect(requestLogs).not.toContain('corsIframes');
   });
 
   it('does not add corsIframes for same-origin iframes', async () => {
@@ -141,9 +148,13 @@ describe('cross-origin iframe handling', () => {
     expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
       'Snapshot found: Same Origin Iframe'
     ]));
+
+    // Same-origin frame should not have been evaluated for PercyDOM injection
+    const sameOriginFrame = page.frames()[1];
+    expect(sameOriginFrame.evaluate).not.toHaveBeenCalled();
   });
 
-  it('adds corsIframes for cross-origin iframes', async () => {
+  it('adds corsIframes for cross-origin iframes with correct payload', async () => {
     const page = buildMockPage({
       pageUrl: 'https://example.com/',
       pageHtml: '<html><body><iframe src="https://other.com/embed"></iframe></body></html>',
@@ -163,6 +174,12 @@ describe('cross-origin iframe handling', () => {
     // Verify percyDOM was injected into the cross-origin frame
     const crossFrame = page.frames()[1];
     expect(crossFrame.evaluate).toHaveBeenCalled();
+
+    // Verify the frame.evaluate was called with PercyDOM.serialize options including enableJavascript
+    const serializeCalls = crossFrame.evaluate.calls.allArgs()
+      .filter(args => typeof args[0] === 'function');
+    expect(serializeCalls.length).toBe(1);
+    expect(serializeCalls[0][1]).toEqual(jasmine.objectContaining({ enableJavascript: true }));
   });
 
   it('handles multiple cross-origin iframes', async () => {
@@ -198,7 +215,6 @@ describe('cross-origin iframe handling', () => {
       frames: []
     });
 
-    // Manually add about:blank frame
     const origFrames = page.frames;
     page.frames = () => [...origFrames(), blankFrame];
 
@@ -207,10 +223,121 @@ describe('cross-origin iframe handling', () => {
     expect(blankFrame.evaluate).not.toHaveBeenCalled();
   });
 
-  it('continues gracefully when frame injection fails', async () => {
+  it('skips data: URI frames', async () => {
+    const dataFrame = {
+      url: () => 'data:text/html,<h1>Hello</h1>',
+      evaluate: jasmine.createSpy('data.evaluate')
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>test</body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), dataFrame];
+
+    await percySnapshot(page, 'Data Frame Skip');
+
+    expect(dataFrame.evaluate).not.toHaveBeenCalled();
+  });
+
+  it('skips javascript: URI frames', async () => {
+    const jsFrame = {
+      url: () => 'javascript:void(0)',
+      evaluate: jasmine.createSpy('js.evaluate')
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>test</body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), jsFrame];
+
+    await percySnapshot(page, 'JS Frame Skip');
+
+    expect(jsFrame.evaluate).not.toHaveBeenCalled();
+  });
+
+  it('skips blob: URI frames', async () => {
+    const blobFrame = {
+      url: () => 'blob:https://example.com/abc-123',
+      evaluate: jasmine.createSpy('blob.evaluate')
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>test</body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), blobFrame];
+
+    await percySnapshot(page, 'Blob Frame Skip');
+
+    expect(blobFrame.evaluate).not.toHaveBeenCalled();
+  });
+
+  it('skips chrome-extension: frames', async () => {
+    const extFrame = {
+      url: () => 'chrome-extension://abcdef/popup.html',
+      evaluate: jasmine.createSpy('ext.evaluate')
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>test</body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), extFrame];
+
+    await percySnapshot(page, 'Extension Frame Skip');
+
+    expect(extFrame.evaluate).not.toHaveBeenCalled();
+  });
+
+  it('skips frames with missing percyElementId', async () => {
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body><iframe src="https://other.com/no-id"></iframe></body></html>',
+      frames: [{
+        url: 'https://other.com/no-id',
+        percyElementId: null,
+        snapshot: { html: '<html><body>no id</body></html>', resources: [], warnings: [] }
+      }]
+    });
+
+    await percySnapshot(page, 'Missing Percy Element Id');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Missing Percy Element Id'
+    ]));
+
+    // Frame should have been evaluated (injection + serialize), but result should be dropped
+    const crossFrame = page.frames()[1];
+    expect(crossFrame.evaluate).toHaveBeenCalled();
+  });
+
+  it('does not process frames where PercyDOM injection failed', async () => {
+    let evaluateCallCount = 0;
     const failingFrame = {
       url: () => 'https://cross.example.com/',
-      evaluate: jasmine.createSpy('failing.evaluate').and.rejectWith(new Error('cross-origin access denied'))
+      evaluate: jasmine.createSpy('failing.evaluate').and.callFake(async () => {
+        evaluateCallCount++;
+        if (evaluateCallCount === 1) {
+          // First call is PercyDOM injection — fail it
+          throw new Error('cross-origin access denied');
+        }
+        // Should never reach here — if injection failed, serialize should not be called
+        return { html: '<html>should not appear</html>', resources: [], warnings: [] };
+      })
     };
 
     const page = buildMockPage({
@@ -222,7 +349,41 @@ describe('cross-origin iframe handling', () => {
     const origFrames = page.frames;
     page.frames = () => [...origFrames(), failingFrame];
 
-    await expectAsync(percySnapshot(page, 'Frame Error Graceful')).not.toBeRejected();
+    await expectAsync(percySnapshot(page, 'Frame Injection Failure')).not.toBeRejected();
+
+    // Only the injection call should have been made, not the serialize call
+    expect(evaluateCallCount).toBe(1);
+  });
+
+  it('continues gracefully when frame processing fails after injection', async () => {
+    let evaluateCallCount = 0;
+    const failingFrame = {
+      url: () => 'https://cross.example.com/',
+      evaluate: jasmine.createSpy('failing.evaluate').and.callFake(async (fn) => {
+        evaluateCallCount++;
+        if (evaluateCallCount === 1) {
+          // First call: PercyDOM injection succeeds
+          return undefined;
+        }
+        // Second call: PercyDOM.serialize fails
+        throw new Error('serialize failed');
+      })
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body><iframe src="https://cross.example.com/"></iframe></body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), failingFrame];
+
+    await expectAsync(percySnapshot(page, 'Frame Process Failure')).not.toBeRejected();
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Frame Process Failure'
+    ]));
   });
 
   it('captures cookies along with the snapshot', async () => {
@@ -242,5 +403,26 @@ describe('cross-origin iframe handling', () => {
       'Snapshot found: With Cookies'
     ]));
     expect(page.cookies).toHaveBeenCalled();
+  });
+
+  it('handles frames with invalid URLs gracefully', async () => {
+    const invalidFrame = {
+      url: () => 'not-a-valid-url',
+      evaluate: jasmine.createSpy('invalid.evaluate')
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>test</body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), invalidFrame];
+
+    await expectAsync(percySnapshot(page, 'Invalid URL Frame')).not.toBeRejected();
+
+    // Frame with invalid URL should not be processed
+    expect(invalidFrame.evaluate).not.toHaveBeenCalled();
   });
 });
