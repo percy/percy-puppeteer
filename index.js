@@ -135,6 +135,92 @@ async function captureSerializedDOM(page, options, percyDOM) {
   return domSnapshot;
 }
 
+// Use CDP to discover closed shadow roots and expose them to PercyDOM.serialize().
+// Closed shadow roots are inaccessible from JS (element.shadowRoot === null),
+// but CDP's DOM domain can pierce them. We resolve each closed shadow root to a
+// JS object and store it in a WeakMap that clone-dom.js reads during serialization.
+async function exposeClosedShadowRoots(page) {
+  let client;
+  try {
+    client = await page.target().createCDPSession();
+  } catch {
+    // Not a Chromium browser — skip silently
+    return;
+  }
+
+  try {
+    await client.send('DOM.enable');
+
+    // Get the full DOM tree, piercing all shadow roots including closed ones
+    const { root } = await client.send('DOM.getDocument', {
+      depth: -1,
+      pierce: true
+    });
+
+    // Walk the CDP DOM tree to find closed shadow roots
+    const closedPairs = [];
+    function walkNodes(node) {
+      if (node.shadowRoots) {
+        for (const sr of node.shadowRoots) {
+          if (sr.shadowRootType === 'closed') {
+            closedPairs.push({
+              hostBackendNodeId: node.backendNodeId,
+              shadowBackendNodeId: sr.backendNodeId
+            });
+          }
+          walkNodes(sr);
+        }
+      }
+      if (node.children) {
+        for (const child of node.children) {
+          walkNodes(child);
+        }
+      }
+    }
+    walkNodes(root);
+
+    if (closedPairs.length === 0) {
+      await client.send('DOM.disable');
+      return;
+    }
+
+    log.debug(`Found ${closedPairs.length} closed shadow root(s), exposing via CDP`);
+
+    // Create the WeakMap on the page (same key as preflight.js uses)
+    /* istanbul ignore next: browser-executed code */
+    await page.evaluate(() => {
+      window.__percyClosedShadowRoots = window.__percyClosedShadowRoots || new WeakMap();
+    });
+
+    // For each pair, resolve both host element and shadow root to JS objects,
+    // then store the mapping in the WeakMap
+    for (const pair of closedPairs) {
+      const { object: hostObj } = await client.send('DOM.resolveNode', {
+        backendNodeId: pair.hostBackendNodeId
+      });
+      const { object: shadowObj } = await client.send('DOM.resolveNode', {
+        backendNodeId: pair.shadowBackendNodeId
+      });
+
+      /* istanbul ignore next: CDP-injected function */
+      await client.send('Runtime.callFunctionOn', {
+        functionDeclaration: 'function(shadowRoot) { window.__percyClosedShadowRoots.set(this, shadowRoot); }',
+        objectId: hostObj.objectId,
+        arguments: [{ objectId: shadowObj.objectId }]
+      });
+    }
+
+    await client.send('DOM.disable');
+  } catch (err) {
+    // Non-fatal — closed shadow DOM just won't be captured
+    log.debug('Could not expose closed shadow roots via CDP:', err.message);
+  } finally {
+    if (client) {
+      await client.detach().catch(() => {});
+    }
+  }
+}
+
 // Take a DOM snapshot and post it to the snapshot endpoint
 async function percySnapshot(page, name, options) {
   if (!page) throw new Error('A Puppeteer `page` object is required.');
@@ -145,6 +231,10 @@ async function percySnapshot(page, name, options) {
     // Inject the DOM serialization script
     const percyDOM = await utils.fetchPercyDOM();
     await page.evaluate(percyDOM);
+
+    // Expose closed shadow roots via CDP before serialization so
+    // PercyDOM.serialize() can access them through the WeakMap
+    await exposeClosedShadowRoots(page);
 
     let domSnapshot = await captureSerializedDOM(page, options || {}, percyDOM);
 
