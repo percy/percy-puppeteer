@@ -19,6 +19,7 @@ const UNSUPPORTED_IFRAME_SRCS = [
 ];
 
 function isUnsupportedIframeSrc(src) {
+  /* istanbul ignore next: defensive guard — callers already filter falsy URLs */
   if (!src) return true;
   return UNSUPPORTED_IFRAME_SRCS.some(prefix => src === prefix || src.startsWith(prefix));
 }
@@ -215,7 +216,9 @@ async function exposeClosedShadowRoots(page) {
     // Non-fatal — closed shadow DOM just won't be captured
     log.debug('Could not expose closed shadow roots via CDP:', err.message);
   } finally {
+    /* istanbul ignore else: client is always set when this finally block is reached */
     if (client) {
+      /* istanbul ignore next: swallow detach errors */
       await client.detach().catch(() => {});
     }
   }

@@ -405,6 +405,26 @@ describe('cross-origin iframe handling', () => {
     expect(page.cookies).toHaveBeenCalled();
   });
 
+  it('skips frames with empty string URL', async () => {
+    const emptyFrame = {
+      url: () => '',
+      evaluate: jasmine.createSpy('empty.evaluate')
+    };
+
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>test</body></html>',
+      frames: []
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), emptyFrame];
+
+    await percySnapshot(page, 'Empty URL Frame Skip');
+
+    expect(emptyFrame.evaluate).not.toHaveBeenCalled();
+  });
+
   it('handles frames with invalid URLs gracefully', async () => {
     const invalidFrame = {
       url: () => 'not-a-valid-url',
