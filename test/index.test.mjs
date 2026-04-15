@@ -426,3 +426,295 @@ describe('cross-origin iframe handling', () => {
     expect(invalidFrame.evaluate).not.toHaveBeenCalled();
   });
 });
+
+describe('closed shadow root handling', () => {
+  beforeEach(async () => {
+    await helpers.setupTest();
+  });
+
+  function buildShadowDOMMockPage({ pageUrl, pageHtml, cdpSession }) {
+    return {
+      url: () => pageUrl,
+      evaluate: jasmine.createSpy('page.evaluate').and.callFake(async (fn) => {
+        if (typeof fn === 'string') return undefined;
+        if (typeof fn === 'function' && fn.toString().includes('PercyDOM.serialize')) {
+          return { html: pageHtml, resources: [], warnings: [] };
+        }
+        return undefined;
+      }),
+      frames: () => [{ url: () => pageUrl }],
+      cookies: jasmine.createSpy('cookies').and.returnValue(Promise.resolve([])),
+      target: () => ({
+        createCDPSession: cdpSession
+          ? jasmine.createSpy('createCDPSession').and.returnValue(Promise.resolve(cdpSession))
+          : jasmine.createSpy('createCDPSession').and.throwError('Not Chromium')
+      })
+    };
+  }
+
+  it('succeeds when createCDPSession throws (non-Chromium browser)', async () => {
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>no cdp</body></html>',
+      cdpSession: null
+    });
+
+    await percySnapshot(page, 'Non-Chromium Snapshot');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Non-Chromium Snapshot'
+    ]));
+  });
+
+  it('disables DOM and returns when no closed shadow roots are found', async () => {
+    const mockClient = {
+      send: jasmine.createSpy('send').and.callFake(async (method) => {
+        if (method === 'DOM.enable') return;
+        if (method === 'DOM.getDocument') {
+          return {
+            root: {
+              backendNodeId: 1,
+              children: [
+                {
+                  backendNodeId: 2,
+                  shadowRoots: [
+                    { backendNodeId: 3, shadowRootType: 'open', children: [] }
+                  ],
+                  children: []
+                }
+              ]
+            }
+          };
+        }
+        if (method === 'DOM.disable') return;
+      }),
+      detach: jasmine.createSpy('detach').and.returnValue(Promise.resolve())
+    };
+
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>open shadow only</body></html>',
+      cdpSession: mockClient
+    });
+
+    await percySnapshot(page, 'No Closed Shadows');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: No Closed Shadows'
+    ]));
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.enable');
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.getDocument', { depth: -1, pierce: true });
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.disable');
+    expect(mockClient.send).not.toHaveBeenCalledWith('DOM.resolveNode', jasmine.anything());
+    expect(mockClient.detach).toHaveBeenCalled();
+  });
+
+  it('exposes closed shadow roots via CDP', async () => {
+    const mockClient = {
+      send: jasmine.createSpy('send').and.callFake(async (method, params) => {
+        if (method === 'DOM.enable') return;
+        if (method === 'DOM.getDocument') {
+          return {
+            root: {
+              backendNodeId: 1,
+              children: [
+                {
+                  backendNodeId: 10,
+                  shadowRoots: [
+                    { backendNodeId: 20, shadowRootType: 'closed', children: [] }
+                  ],
+                  children: []
+                }
+              ]
+            }
+          };
+        }
+        if (method === 'DOM.resolveNode') {
+          return { object: { objectId: `obj-${params.backendNodeId}` } };
+        }
+        if (method === 'Runtime.callFunctionOn') return;
+        if (method === 'DOM.disable') return;
+      }),
+      detach: jasmine.createSpy('detach').and.returnValue(Promise.resolve())
+    };
+
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>closed shadow</body></html>',
+      cdpSession: mockClient
+    });
+
+    await percySnapshot(page, 'Closed Shadow Roots');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Closed Shadow Roots'
+    ]));
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.enable');
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.getDocument', { depth: -1, pierce: true });
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.resolveNode', { backendNodeId: 10 });
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.resolveNode', { backendNodeId: 20 });
+    expect(mockClient.send).toHaveBeenCalledWith('Runtime.callFunctionOn', jasmine.objectContaining({
+      objectId: 'obj-10',
+      arguments: [{ objectId: 'obj-20' }]
+    }));
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.disable');
+    expect(mockClient.detach).toHaveBeenCalled();
+  });
+
+  it('catches CDP errors and still succeeds with snapshot', async () => {
+    const mockClient = {
+      send: jasmine.createSpy('send').and.callFake(async (method) => {
+        if (method === 'DOM.enable') return;
+        if (method === 'DOM.getDocument') {
+          throw new Error('CDP DOM.getDocument failed');
+        }
+      }),
+      detach: jasmine.createSpy('detach').and.returnValue(Promise.resolve())
+    };
+
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>cdp error</body></html>',
+      cdpSession: mockClient
+    });
+
+    await percySnapshot(page, 'CDP Error Snapshot');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: CDP Error Snapshot'
+    ]));
+    expect(mockClient.detach).toHaveBeenCalled();
+  });
+
+  it('handles multiple closed shadow roots', async () => {
+    const mockClient = {
+      send: jasmine.createSpy('send').and.callFake(async (method, params) => {
+        if (method === 'DOM.enable') return;
+        if (method === 'DOM.getDocument') {
+          return {
+            root: {
+              backendNodeId: 1,
+              children: [
+                {
+                  backendNodeId: 10,
+                  shadowRoots: [
+                    { backendNodeId: 20, shadowRootType: 'closed', children: [] }
+                  ],
+                  children: []
+                },
+                {
+                  backendNodeId: 30,
+                  shadowRoots: [
+                    { backendNodeId: 40, shadowRootType: 'closed', children: [] }
+                  ],
+                  children: []
+                }
+              ]
+            }
+          };
+        }
+        if (method === 'DOM.resolveNode') {
+          return { object: { objectId: `obj-${params.backendNodeId}` } };
+        }
+        if (method === 'Runtime.callFunctionOn') return;
+        if (method === 'DOM.disable') return;
+      }),
+      detach: jasmine.createSpy('detach').and.returnValue(Promise.resolve())
+    };
+
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>multiple closed</body></html>',
+      cdpSession: mockClient
+    });
+
+    await percySnapshot(page, 'Multiple Closed Shadows');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Multiple Closed Shadows'
+    ]));
+
+    // DOM.resolveNode called for each host and shadow pair (2 pairs = 4 calls)
+    const resolveNodeCalls = mockClient.send.calls.allArgs()
+      .filter(args => args[0] === 'DOM.resolveNode');
+    expect(resolveNodeCalls.length).toBe(4);
+    expect(resolveNodeCalls).toEqual(jasmine.arrayContaining([
+      ['DOM.resolveNode', { backendNodeId: 10 }],
+      ['DOM.resolveNode', { backendNodeId: 20 }],
+      ['DOM.resolveNode', { backendNodeId: 30 }],
+      ['DOM.resolveNode', { backendNodeId: 40 }]
+    ]));
+
+    // Runtime.callFunctionOn called once per pair
+    const callFunctionOnCalls = mockClient.send.calls.allArgs()
+      .filter(args => args[0] === 'Runtime.callFunctionOn');
+    expect(callFunctionOnCalls.length).toBe(2);
+  });
+
+  it('recurses into nested shadow roots (open containing closed)', async () => {
+    const mockClient = {
+      send: jasmine.createSpy('send').and.callFake(async (method, params) => {
+        if (method === 'DOM.enable') return;
+        if (method === 'DOM.getDocument') {
+          return {
+            root: {
+              backendNodeId: 1,
+              children: [
+                {
+                  backendNodeId: 10,
+                  shadowRoots: [
+                    {
+                      backendNodeId: 20,
+                      shadowRootType: 'open',
+                      children: [
+                        {
+                          backendNodeId: 30,
+                          shadowRoots: [
+                            { backendNodeId: 40, shadowRootType: 'closed', children: [] }
+                          ],
+                          children: []
+                        }
+                      ]
+                    }
+                  ],
+                  children: []
+                }
+              ]
+            }
+          };
+        }
+        if (method === 'DOM.resolveNode') {
+          return { object: { objectId: `obj-${params.backendNodeId}` } };
+        }
+        if (method === 'Runtime.callFunctionOn') return;
+        if (method === 'DOM.disable') return;
+      }),
+      detach: jasmine.createSpy('detach').and.returnValue(Promise.resolve())
+    };
+
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>nested shadow</body></html>',
+      cdpSession: mockClient
+    });
+
+    await percySnapshot(page, 'Nested Shadow Roots');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Nested Shadow Roots'
+    ]));
+
+    // The closed shadow root (40) nested inside the open one (20) should be found
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.resolveNode', { backendNodeId: 30 });
+    expect(mockClient.send).toHaveBeenCalledWith('DOM.resolveNode', { backendNodeId: 40 });
+    expect(mockClient.send).toHaveBeenCalledWith('Runtime.callFunctionOn', jasmine.objectContaining({
+      objectId: 'obj-30',
+      arguments: [{ objectId: 'obj-40' }]
+    }));
+
+    // Only one pair should be found (the closed one, not the open one)
+    const callFunctionOnCalls = mockClient.send.calls.allArgs()
+      .filter(args => args[0] === 'Runtime.callFunctionOn');
+    expect(callFunctionOnCalls.length).toBe(1);
+  });
+});
