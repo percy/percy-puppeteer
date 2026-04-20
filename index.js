@@ -173,6 +173,7 @@ async function exposeClosedShadowRoots(page) {
     function walkNodes(node) {
       // Skip nodes inside child frame documents — cross-frame closed shadow
       // roots are not yet supported (their execution context lacks the WeakMap)
+      /* istanbul ignore next: CDP DOM tree may include iframe contentDocument nodes */
       if (node.contentDocument) return;
       if (node.shadowRoots) {
         for (const sr of node.shadowRoots) {
