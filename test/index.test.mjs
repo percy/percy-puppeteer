@@ -737,4 +737,60 @@ describe('closed shadow root handling', () => {
       .filter(args => args[0] === 'Runtime.callFunctionOn');
     expect(callFunctionOnCalls.length).toBe(1);
   });
+
+  it('skips closed shadow roots inside child frame documents', async () => {
+    const mockClient = {
+      send: jasmine.createSpy('send').and.callFake(async (method, params) => {
+        if (method === 'DOM.enable') return;
+        if (method === 'DOM.getDocument') {
+          return {
+            root: {
+              backendNodeId: 1,
+              children: [
+                {
+                  // An iframe node with contentDocument — should be skipped
+                  backendNodeId: 50,
+                  contentDocument: {
+                    backendNodeId: 51,
+                    children: [
+                      {
+                        backendNodeId: 60,
+                        shadowRoots: [
+                          { backendNodeId: 70, shadowRootType: 'closed', children: [] }
+                        ],
+                        children: []
+                      }
+                    ]
+                  },
+                  children: []
+                }
+              ]
+            }
+          };
+        }
+        if (method === 'DOM.resolveNode') {
+          return { object: { objectId: `obj-${params.backendNodeId}` } };
+        }
+        if (method === 'Runtime.callFunctionOn') return;
+      }),
+      detach: jasmine.createSpy('detach').and.returnValue(Promise.resolve())
+    };
+
+    const page = buildShadowDOMMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body>iframe with closed shadow</body></html>',
+      cdpSession: mockClient
+    });
+
+    await percySnapshot(page, 'Iframe Shadow Roots Skipped');
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Iframe Shadow Roots Skipped'
+    ]));
+
+    // The closed shadow root inside the iframe contentDocument should NOT be processed
+    const callFunctionOnCalls = mockClient.send.calls.allArgs()
+      .filter(args => args[0] === 'Runtime.callFunctionOn');
+    expect(callFunctionOnCalls.length).toBe(0);
+  });
 });
