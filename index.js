@@ -25,10 +25,13 @@ function isUnsupportedIframeSrc(src) {
 }
 
 // Processes a single cross-origin frame to capture its snapshot and resources.
-async function processFrame(page, frame, options, percyDOM) {
+async function processFrame(page, frame, options) {
   const frameUrl = frame.url();
   log.debug(`Processing cross-origin iframe: ${frameUrl}`);
 
+  // enableJavascript is intentionally forced to true to prevent the standard iframe
+  // serialization logic from running; user-provided enableJavascript: false is not
+  // applicable to cross-origin iframe serialization
   /* istanbul ignore next: browser-executed iframe serialization */
   const iframeSnapshot = await frame.evaluate((opts) => {
     /* eslint-disable-next-line no-undef */
@@ -115,19 +118,22 @@ async function captureSerializedDOM(page, options, percyDOM) {
 
   const processedFrames = (await Promise.all(
     injectableFrames.map(frame =>
-      processFrame(page, frame, options, percyDOM).catch(e => {
+      processFrame(page, frame, options).catch(e => {
         log.debug(`Failed to process cross-origin frame ${frame.url()}: ${e.message}`);
         return null;
       })
     )
   )).filter(Boolean);
 
+  domSnapshot.corsIframes = processedFrames;
   if (processedFrames.length > 0) {
-    domSnapshot.corsIframes = processedFrames;
     log.debug(`Captured ${processedFrames.length} cross-origin iframe(s)`);
   }
 
   // Capture cookies
+  // Note: page.cookies() is deprecated in Puppeteer v23+ in favor of
+  // page.browserContext().cookies(). Cookies are only used by the CLI
+  // for fetching cross-origin iframe resources during asset discovery.
   const cookies = await page.cookies();
   if (cookies && cookies.length > 0) {
     domSnapshot.cookies = cookies;
@@ -144,15 +150,19 @@ async function exposeClosedShadowRoots(page) {
   let client;
   try {
     client = await page.target().createCDPSession();
-  } catch {
-    // Not a Chromium browser — skip silently
+  } catch (err) {
+    // Non-Chromium browser or CDP session unavailable
+    log.debug('CDP session unavailable:', err.message);
     return;
   }
 
   try {
     await client.send('DOM.enable');
 
-    // Get the full DOM tree, piercing all shadow roots including closed ones
+    // Performance note: DOM.getDocument with pierce:true traverses the entire DOM
+    // including all shadow trees, which can be expensive for large apps. A future
+    // optimization could add a cheap pre-check to skip this when no closed shadow
+    // roots exist on the page.
     const { root } = await client.send('DOM.getDocument', {
       depth: -1,
       pierce: true
@@ -161,6 +171,9 @@ async function exposeClosedShadowRoots(page) {
     // Walk the CDP DOM tree to find closed shadow roots
     const closedPairs = [];
     function walkNodes(node) {
+      // Skip nodes inside child frame documents — cross-frame closed shadow
+      // roots are not yet supported (their execution context lacks the WeakMap)
+      if (node.contentDocument) return;
       if (node.shadowRoots) {
         for (const sr of node.shadowRoots) {
           if (sr.shadowRootType === 'closed') {
