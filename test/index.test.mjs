@@ -61,4 +61,65 @@ describe('percySnapshot', () => {
       '[percy] Could not take DOM snapshot "Snapshot 1"'
     ]));
   });
+
+  describe('readiness gate (PER-7348)', () => {
+    const isReadinessEval = (args) => {
+      const fn = args[0];
+      return typeof fn === 'function' && fn.toString().includes('waitForReady');
+    };
+    const isSerializeEval = (args) => {
+      const fn = args[0];
+      return typeof fn === 'function' && fn.toString().includes('PercyDOM.serialize');
+    };
+
+    it('runs waitForReady before serialize by default', async () => {
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+
+      await percySnapshot(page, 'readiness-happy-path');
+
+      const calls = spy.calls.allArgs();
+      const rIdx = calls.findIndex(isReadinessEval);
+      const sIdx = calls.findIndex(isSerializeEval);
+      expect(rIdx).toBeGreaterThanOrEqual(0);
+      expect(sIdx).toBeGreaterThanOrEqual(0);
+      expect(rIdx).toBeLessThan(sIdx);
+    });
+
+    it('passes readiness config through to waitForReady', async () => {
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+      const readiness = { preset: 'strict', stabilityWindowMs: 500 };
+
+      await percySnapshot(page, 'readiness-config', { readiness });
+
+      const readinessCall = spy.calls.allArgs().find(isReadinessEval);
+      expect(readinessCall).toBeDefined();
+      expect(readinessCall[1]).toEqual(readiness);
+    });
+
+    it('skips waitForReady when preset is disabled', async () => {
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+
+      await percySnapshot(page, 'readiness-disabled', { readiness: { preset: 'disabled' } });
+
+      const readinessCall = spy.calls.allArgs().find(isReadinessEval);
+      expect(readinessCall).toBeUndefined();
+      expect(spy.calls.allArgs().find(isSerializeEval)).toBeDefined();
+    });
+
+    it('still runs serialize when waitForReady rejects', async () => {
+      const origEvaluate = page.evaluate.bind(page);
+      spyOn(page, 'evaluate').and.callFake((fn, ...rest) => {
+        if (typeof fn === 'function' && fn.toString().includes('waitForReady')) {
+          return Promise.reject(new Error('readiness boom'));
+        }
+        return origEvaluate(fn, ...rest);
+      });
+
+      await percySnapshot(page, 'readiness-reject');
+
+      expect(helpers.logger.stderr).not.toEqual(jasmine.arrayContaining([
+        '[percy] Could not take DOM snapshot "readiness-reject"'
+      ]));
+    });
+  });
 });
