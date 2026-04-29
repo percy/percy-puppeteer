@@ -75,40 +75,54 @@ describe('cross-origin iframe handling', () => {
   });
 
   function buildMockPage({ pageUrl, pageHtml, frames = [] }) {
-    const mainFrame = {
-      url: () => pageUrl
+    // The lookup function used both by page.evaluate and by mainFrame.evaluate
+    // when processFrame asks "which iframe element corresponds to this frame URL".
+    // Real Puppeteer Frame objects expose .evaluate; tests need to as well so
+    // processFrame's parentFrame.evaluate(...) call resolves correctly.
+    const lookupIframeData = (fnStr, args) => {
+      if (fnStr.includes('querySelectorAll') && fnStr.includes('iframe')) {
+        const frameUrl = args[0];
+        const matchingFrame = frames.find(f => f.url.startsWith(frameUrl) || frameUrl.startsWith(f.url));
+        if (matchingFrame && matchingFrame.percyElementId) {
+          return { percyElementId: matchingFrame.percyElementId };
+        }
+        return undefined;
+      }
+      return undefined;
     };
 
-    const mockFrames = frames.map(f => ({
-      url: () => f.url,
-      evaluate: jasmine.createSpy(`frame.evaluate(${f.url})`).and.callFake(async (fn, ...args) => {
-        // If fn is a string (percyDOM script injection), return undefined
+    const mainFrame = {
+      url: () => pageUrl,
+      parentFrame: () => null,
+      evaluate: jasmine.createSpy('mainFrame.evaluate').and.callFake(async (fn, ...args) => {
         if (typeof fn === 'string') return undefined;
-        // If fn is a function (PercyDOM.serialize call), return the iframe snapshot
-        return f.snapshot || { html: '<html><body>iframe content</body></html>', resources: [], warnings: [] };
+        return lookupIframeData(fn.toString(), args);
       })
-    }));
+    };
+
+    const mockFrames = frames.map(f => {
+      const frameObj = {
+        url: () => f.url,
+        // For top-level test frames, treat the main frame as the parent.
+        parentFrame: () => mainFrame,
+        evaluate: jasmine.createSpy(`frame.evaluate(${f.url})`).and.callFake(async (fn, ...args) => {
+          if (typeof fn === 'string') return undefined;
+          return f.snapshot || { html: '<html><body>iframe content</body></html>', resources: [], warnings: [] };
+        })
+      };
+      return frameObj;
+    });
 
     mockPage = {
       url: () => pageUrl,
+      mainFrame: () => mainFrame,
       evaluate: jasmine.createSpy('page.evaluate').and.callFake(async (fn, ...args) => {
-        // First call: inject percyDOM script (string)
         if (typeof fn === 'string') return undefined;
-        // Function calls
         const fnStr = fn.toString();
         if (fnStr.includes('PercyDOM.serialize')) {
           return { html: pageHtml, resources: [], warnings: [] };
         }
-        // Looking up iframe element by URL (processFrame's page.evaluate)
-        if (fnStr.includes('querySelectorAll') && fnStr.includes('iframe')) {
-          const frameUrl = args[0];
-          const matchingFrame = frames.find(f => f.url.startsWith(frameUrl) || frameUrl.startsWith(f.url));
-          if (matchingFrame && matchingFrame.percyElementId) {
-            return { percyElementId: matchingFrame.percyElementId };
-          }
-          return undefined;
-        }
-        return undefined;
+        return lookupIframeData(fnStr, args);
       }),
       frames: () => [mainFrame, ...mockFrames],
       cookies: jasmine.createSpy('cookies').and.returnValue(Promise.resolve([]))
@@ -175,11 +189,64 @@ describe('cross-origin iframe handling', () => {
     const crossFrame = page.frames()[1];
     expect(crossFrame.evaluate).toHaveBeenCalled();
 
-    // Verify the frame.evaluate was called with PercyDOM.serialize options including enableJavascript
+    // Verify the frame.evaluate was called with PercyDOM.serialize options including enableJavaScript
     const serializeCalls = crossFrame.evaluate.calls.allArgs()
       .filter(args => typeof args[0] === 'function');
     expect(serializeCalls.length).toBe(1);
-    expect(serializeCalls[0][1]).toEqual(jasmine.objectContaining({ enableJavascript: true }));
+    expect(serializeCalls[0][1]).toEqual(jasmine.objectContaining({ enableJavaScript: true }));
+  });
+
+  it('captures nested cross-origin iframes (cross-origin inside cross-origin)', async () => {
+    // Mock a 3-level frame tree: page (example.com) -> outer (other.com) -> inner (deep.com)
+    // page.frames() returns the flat list including the nested grandchild.
+    const page = buildMockPage({
+      pageUrl: 'https://example.com/',
+      pageHtml: '<html><body><iframe src="https://other.com/outer"></iframe></body></html>',
+      frames: [{
+        url: 'https://other.com/outer',
+        percyElementId: 'percy-outer',
+        snapshot: { html: '<html>outer</html>', resources: [], warnings: [] }
+      }]
+    });
+
+    const outerFrame = page.frames()[1];
+    const innerFrame = {
+      url: () => 'https://deep.com/inner',
+      parentFrame: () => outerFrame,
+      evaluate: jasmine.createSpy('inner.evaluate').and.callFake(async (fn, ...args) => {
+        if (typeof fn === 'string') return undefined;
+        // PercyDOM.serialize inside the inner cross-origin frame
+        return { html: '<html>inner</html>', resources: [], warnings: [] };
+      })
+    };
+    // The outer frame's DOM is what we look up the *inner* iframe element in.
+    outerFrame.evaluate = jasmine.createSpy('outer.evaluate').and.callFake(async (fn, ...args) => {
+      if (typeof fn === 'string') return undefined;
+      const fnStr = fn.toString();
+      if (fnStr.includes('PercyDOM.serialize')) {
+        return { html: '<html>outer</html>', resources: [], warnings: [] };
+      }
+      if (fnStr.includes('querySelectorAll') && fnStr.includes('iframe')) {
+        const u = args[0];
+        if (u === 'https://deep.com/inner' || 'https://deep.com/inner'.startsWith(u)) {
+          return { percyElementId: 'percy-inner' };
+        }
+      }
+      return undefined;
+    });
+
+    const origFrames = page.frames;
+    page.frames = () => [...origFrames(), innerFrame];
+
+    await percySnapshot(page, 'Nested CORS');
+
+    // Both outer and inner cross-origin frames should have been evaluated for PercyDOM.serialize
+    const outerSerializeCalls = outerFrame.evaluate.calls.allArgs()
+      .filter(args => typeof args[0] === 'function' && args[0].toString().includes('PercyDOM.serialize'));
+    const innerSerializeCalls = innerFrame.evaluate.calls.allArgs()
+      .filter(args => typeof args[0] === 'function' && args[0].toString().includes('PercyDOM.serialize'));
+    expect(outerSerializeCalls.length).toBe(1);
+    expect(innerSerializeCalls.length).toBe(1);
   });
 
   it('handles multiple cross-origin iframes', async () => {
