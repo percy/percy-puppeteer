@@ -61,10 +61,19 @@ async function processFrame(page, frame, options) {
   // immediately enclosing frame. Reading from the top page would miss nested
   // iframes whose <iframe> element lives inside another frame's document.
   const parentFrame = (frame.parentFrame && frame.parentFrame()) || page.mainFrame();
+  // Match by exact src first; fall back to a normalized comparison that
+  // tolerates only a trailing-slash difference. A naive `startsWith` would
+  // mis-match siblings that share a URL prefix (e.g. `https://ads.com/` and
+  // `https://ads.com/banner` — both pass `startsWith('https://ads.com/')` —
+  // and the find() would return whichever is in the DOM first, swapping the
+  // wrong percyElementId onto this frame's snapshot).
   /* istanbul ignore next: browser-executed evaluation function */
   const iframeData = await parentFrame.evaluate((fUrl) => {
+    const norm = (s) => (s || '').replace(/\/+$/, '');
+    const target = norm(fUrl);
     const iframes = Array.from(document.querySelectorAll('iframe'));
-    const matchingIframe = iframes.find(iframe => iframe.src === fUrl || iframe.src.startsWith(fUrl));
+    const matchingIframe = iframes.find(iframe => iframe.src === fUrl) ||
+      iframes.find(iframe => norm(iframe.src) === target);
     if (matchingIframe) {
       return {
         percyElementId: matchingIframe.getAttribute('data-percy-element-id')
