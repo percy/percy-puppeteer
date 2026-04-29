@@ -38,6 +38,21 @@ function frameDepth(frame) {
   return depth;
 }
 
+// True if the frame's URL also appears somewhere in its ancestor chain
+// (A->B->A pattern). Pages that link to themselves through cross-origin
+// gateways would otherwise be captured up to MAX_FRAME_DEPTH levels with
+// duplicate frameUrl entries.
+function isCyclicFrame(frame) {
+  const url = frame.url ? frame.url() : null;
+  if (!url) return false;
+  let cur = frame.parentFrame ? frame.parentFrame() : null;
+  while (cur) {
+    if (cur.url && cur.url() === url) return true;
+    cur = cur.parentFrame ? cur.parentFrame() : null;
+  }
+  return false;
+}
+
 // Processes a single cross-origin frame to capture its snapshot and resources.
 // The iframe element holding this frame's percyElementId lives in the parent
 // frame's DOM (not necessarily the top page) — important for nesting where the
@@ -124,6 +139,10 @@ async function captureSerializedDOM(page, options, percyDOM) {
       const depth = frameDepth(frame);
       if (depth > MAX_FRAME_DEPTH) {
         log.debug(`Skipping iframe at depth ${depth} (max ${MAX_FRAME_DEPTH}): ${frameUrl}`);
+        return false;
+      }
+      if (isCyclicFrame(frame)) {
+        log.debug(`Skipping cyclic iframe (${frameUrl} appears in ancestor chain)`);
         return false;
       }
       try {
