@@ -18,7 +18,20 @@ const UNSUPPORTED_IFRAME_SRCS = [
   'chrome-extension:'
 ];
 
-const MAX_FRAME_DEPTH = 10;
+const DEFAULT_MAX_FRAME_DEPTH = 10;
+const HARD_MAX_FRAME_DEPTH = 25;
+
+function resolveMaxFrameDepth(options = {}) {
+  const raw = options.maxIframeDepth ?? DEFAULT_MAX_FRAME_DEPTH;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_MAX_FRAME_DEPTH;
+  return Math.min(n, HARD_MAX_FRAME_DEPTH);
+}
+
+function resolveIgnoreSelectors(options = {}) {
+  const list = options.ignoreIframeSelectors ?? [];
+  return Array.isArray(list) ? list.filter(s => typeof s === 'string' && s.trim()) : [];
+}
 
 function isUnsupportedIframeSrc(src) {
   /* istanbul ignore next: defensive guard — callers already filter falsy URLs */
@@ -120,16 +133,60 @@ async function captureSerializedDOM(page, options, percyDOM) {
   // page + all descendants), so nested cross-origin iframes are already
   // included. We filter to cross-origin frames whose origin differs from
   // their parent frame's origin (same-origin descendants are inlined as
-  // srcdoc by PercyDOM). The MAX_FRAME_DEPTH cap protects against runaway
+  // srcdoc by PercyDOM). The maxFrameDepth cap protects against runaway
   // recursion in malformed pages.
+  const maxFrameDepth = resolveMaxFrameDepth(options);
+  const ignoreSelectors = resolveIgnoreSelectors(options);
   const allFrames = page.frames();
   const mainFrame = (page.mainFrame && page.mainFrame()) || allFrames[0];
   log.debug(`Found ${allFrames.length} total frame(s) on page`);
+
+  // Resolve per-frame `data-percy-ignore` and ignoreIframeSelectors flags from
+  // the parent frame's DOM (where the <iframe> element actually lives) before
+  // the cross-origin filter. Done in parallel since each is a single round-trip.
+  const ignoreFlagsByFrame = new Map();
+  await Promise.all(allFrames.map(async (frame) => {
+    if (frame === mainFrame) return;
+    try {
+      const parent = (frame.parentFrame && frame.parentFrame()) || mainFrame;
+      const flags = await parent.evaluate((fUrl, selectors) => {
+        const norm = (s) => (s || '').replace(/\/+$/, '');
+        const target = norm(fUrl);
+        const iframes = Array.from(document.querySelectorAll('iframe'));
+        const el = iframes.find(i => i.src === fUrl) || iframes.find(i => norm(i.src) === target);
+        if (!el) return { dataPercyIgnore: false, matchesIgnoreSelector: false };
+        let matches = false;
+        if (selectors && selectors.length) {
+          for (let j = 0; j < selectors.length; j++) {
+            try { if (el.matches(selectors[j])) { matches = true; break; } } catch (e) { /* invalid selector */ }
+          }
+        }
+        return {
+          dataPercyIgnore: el.hasAttribute('data-percy-ignore'),
+          matchesIgnoreSelector: matches
+        };
+      }, frame.url(), ignoreSelectors);
+      ignoreFlagsByFrame.set(frame, flags);
+    } catch (e) {
+      // Couldn't resolve — leave entry absent so the filter falls through
+      // to its other rules without false-skipping.
+    }
+  }));
 
   const crossOriginFrames = allFrames
     .filter(frame => {
       // Skip the main frame — only iframes are candidates here.
       if (frame === mainFrame) return false;
+
+      const flags = ignoreFlagsByFrame.get(frame) || {};
+      if (flags.dataPercyIgnore) {
+        log.debug(`Skipping iframe marked with data-percy-ignore: ${frame.url()}`);
+        return false;
+      }
+      if (flags.matchesIgnoreSelector) {
+        log.debug(`Skipping iframe matching ignoreIframeSelectors: ${frame.url()}`);
+        return false;
+      }
 
       const frameUrl = frame.url();
       if (!frameUrl || isUnsupportedIframeSrc(frameUrl)) {
@@ -137,8 +194,8 @@ async function captureSerializedDOM(page, options, percyDOM) {
         return false;
       }
       const depth = frameDepth(frame);
-      if (depth > MAX_FRAME_DEPTH) {
-        log.debug(`Skipping iframe at depth ${depth} (max ${MAX_FRAME_DEPTH}): ${frameUrl}`);
+      if (depth > maxFrameDepth) {
+        log.debug(`Skipping iframe at depth ${depth} (max ${maxFrameDepth}): ${frameUrl}`);
         return false;
       }
       if (isCyclicFrame(frame)) {
