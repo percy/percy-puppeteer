@@ -196,7 +196,7 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
 
   // Inject Percy DOM into cross-origin frames, track which succeed
   const injectResults = await Promise.all(crossOriginFrames.map(frame =>
-    frame.evaluate(percyDOM)
+    frame.evaluate(percyDOMScript)
       .then(() => {
         log.debug(`Injected PercyDOM into frame: ${frame.url()}`);
         return { frame, success: true };
