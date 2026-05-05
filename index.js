@@ -1,4 +1,9 @@
 const utils = require('@percy/sdk-utils');
+const {
+  resolveMaxFrameDepth,
+  resolveIgnoreSelectors,
+  isUnsupportedIframeSrc
+} = require('./iframe-utils');
 
 // Collect client and environment information
 const sdkPkg = require('./package.json');
@@ -6,38 +11,6 @@ const puppeteerPkg = require('puppeteer/package.json');
 const CLIENT_INFO = `${sdkPkg.name}/${sdkPkg.version}`;
 const ENV_INFO = `${puppeteerPkg.name}/${puppeteerPkg.version}`;
 const log = utils.logger('puppeteer');
-
-const UNSUPPORTED_IFRAME_SRCS = [
-  'about:blank',
-  'about:srcdoc',
-  'javascript:',
-  'data:',
-  'blob:',
-  'vbscript:',
-  'chrome:',
-  'chrome-extension:'
-];
-
-const DEFAULT_MAX_FRAME_DEPTH = 10;
-const HARD_MAX_FRAME_DEPTH = 25;
-
-function resolveMaxFrameDepth(options = {}) {
-  const raw = options.maxIframeDepth ?? DEFAULT_MAX_FRAME_DEPTH;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 1) return DEFAULT_MAX_FRAME_DEPTH;
-  return Math.min(n, HARD_MAX_FRAME_DEPTH);
-}
-
-function resolveIgnoreSelectors(options = {}) {
-  const list = options.ignoreIframeSelectors ?? [];
-  return Array.isArray(list) ? list.filter(s => typeof s === 'string' && s.trim()) : [];
-}
-
-function isUnsupportedIframeSrc(src) {
-  /* istanbul ignore next: defensive guard — callers already filter falsy URLs */
-  if (!src) return true;
-  return UNSUPPORTED_IFRAME_SRCS.some(prefix => src === prefix || src.startsWith(prefix));
-}
 
 // Walk the parentFrame chain to determine the iframe's nesting depth (1 for a
 // top-level iframe, 2 for once-nested, ...).
@@ -122,7 +95,7 @@ async function processFrame(page, frame, options) {
   };
 }
 
-async function captureSerializedDOM(page, options, percyDOM) {
+async function captureSerializedDOM(page, options, percyDOMScript) {
   /* istanbul ignore next: no instrumenting injected code */
   let domSnapshot = await page.evaluate((options) => {
     /* eslint-disable-next-line no-undef */
@@ -256,11 +229,20 @@ async function captureSerializedDOM(page, options, percyDOM) {
     log.debug(`Captured ${processedFrames.length} cross-origin iframe(s)`);
   }
 
-  // Capture cookies
-  // Note: page.cookies() is deprecated in Puppeteer v23+ in favor of
-  // page.browserContext().cookies(). Cookies are only used by the CLI
-  // for fetching cross-origin iframe resources during asset discovery.
-  const cookies = await page.cookies();
+  // Cookies are best-effort enrichment (used by the CLI to fetch cross-origin
+  // iframe resources during asset discovery). page.cookies() is removed in
+  // Puppeteer v23+ in favor of page.browserContext().cookies(); fall back so
+  // a missing API never aborts the snapshot.
+  let cookies;
+  try {
+    if (typeof page.cookies === 'function') {
+      cookies = await page.cookies();
+    } else if (typeof page.browserContext === 'function') {
+      cookies = await page.browserContext().cookies();
+    }
+  } catch (e) {
+    log.debug(`Could not collect cookies: ${e.message}`);
+  }
   if (cookies && cookies.length > 0) {
     domSnapshot.cookies = cookies;
   }
