@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import helpers from '@percy/sdk-utils/test/helpers';
+import utils from '@percy/sdk-utils';
 import percySnapshot from '../index.js';
 
 describe('percySnapshot', () => {
@@ -49,6 +50,21 @@ describe('percySnapshot', () => {
       `- url: ${helpers.testSnapshotURL}`,
       jasmine.stringMatching(/clientInfo: @percy\/puppeteer\/.+/),
       jasmine.stringMatching(/environmentInfo: puppeteer\/.+/)
+    ]));
+  });
+
+  it('posts snapshots when config.snapshot is undefined', async () => {
+    await percySnapshot(page, 'Snapshot to populate config');
+
+    const savedConfig = utils.percy.config;
+    utils.percy.config = { ...savedConfig, snapshot: undefined };
+
+    await percySnapshot(page, 'Snapshot without config');
+
+    utils.percy.config = savedConfig;
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Snapshot without config'
     ]));
   });
 
