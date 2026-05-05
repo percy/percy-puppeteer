@@ -18,11 +18,12 @@ async function percySnapshot(page, name, options) {
     await page.evaluate(await utils.fetchPercyDOM());
 
     // Serialize and capture the DOM
+    const mergedOptions = utils.mergeSnapshotOptions(options);
     /* istanbul ignore next: no instrumenting injected code */
     let domSnapshot = await page.evaluate((options) => {
       /* eslint-disable-next-line no-undef */
       return PercyDOM.serialize(options);
-    }, options);
+    }, mergedOptions);
 
     // Post the DOM to the snapshot endpoint with snapshot options and other info
     await utils.postSnapshot({
