@@ -11,8 +11,7 @@ describe('iframe-utils', () => {
   describe('UNSUPPORTED_IFRAME_SRCS', () => {
     it('exposes the list of unsupported src prefixes', () => {
       expect(UNSUPPORTED_IFRAME_SRCS).toEqual([
-        'about:blank',
-        'about:srcdoc',
+        'about:',
         'javascript:',
         'data:',
         'blob:',
