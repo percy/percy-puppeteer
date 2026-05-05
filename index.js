@@ -122,6 +122,11 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
     if (frame === mainFrame) return;
     try {
       const parent = (frame.parentFrame && frame.parentFrame()) || mainFrame;
+      /* istanbul ignore next: browser-executed evaluate callback — the function
+         body runs inside the page, never in the Jasmine Node process, so
+         coverage instrumentation cannot observe it. Behavior is verified via
+         the parent.evaluate spy stubs in the dataPercyIgnore /
+         matchesIgnoreSelector tests above. */
       const flags = await parent.evaluate((fUrl, selectors) => {
         const norm = (s) => (s || '').replace(/\/+$/, '');
         const target = norm(fUrl);
@@ -378,3 +383,6 @@ async function percySnapshot(page, name, options) {
 }
 
 module.exports = percySnapshot;
+// Exported for direct unit testing of the parentFrame-chain walkers.
+module.exports.frameDepth = frameDepth;
+module.exports.isCyclicFrame = isCyclicFrame;
