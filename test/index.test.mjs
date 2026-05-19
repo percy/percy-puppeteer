@@ -6,7 +6,11 @@ describe('percySnapshot', () => {
   let browser, page;
 
   beforeAll(async function() {
-    browser = await puppeteer.launch();
+    // GitHub-hosted Ubuntu runners disable the Chromium SUID sandbox, so
+    // puppeteer.launch() needs --no-sandbox to bring up the browser in CI.
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
   });
 
   afterAll(async () => {
