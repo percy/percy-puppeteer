@@ -6,6 +6,19 @@ const puppeteerPkg = require('puppeteer/package.json');
 const CLIENT_INFO = `${sdkPkg.name}/${sdkPkg.version}`;
 const ENV_INFO = `${puppeteerPkg.name}/${puppeteerPkg.version}`;
 
+// In-browser readiness invoker. Defined at module scope so the typeof
+// guard branches are unit-testable in Node against a stubbed `PercyDOM`
+// global — that's how we cover the body without `istanbul ignore`. The
+// guard makes this a silent no-op against older CLIs that don't expose
+// waitForReady (backward compat).
+function browserWaitForReady(cfg) {
+  /* eslint-disable-next-line no-undef */
+  if (typeof PercyDOM !== 'undefined' && typeof PercyDOM.waitForReady === 'function') {
+    /* eslint-disable-next-line no-undef */
+    return PercyDOM.waitForReady(cfg);
+  }
+}
+
 // Take a DOM snapshot and post it to the snapshot endpoint
 async function percySnapshot(page, name, options) {
   if (!page) throw new Error('A Puppeteer `page` object is required.');
@@ -18,19 +31,11 @@ async function percySnapshot(page, name, options) {
     await page.evaluate(await utils.fetchPercyDOM());
 
     // Readiness gate — runs before serialize when CLI supports it (PER-7348).
-    // Uses typeof guard for backward compat with older CLI that lacks waitForReady.
     // Diagnostics are captured and attached to domSnapshot so the CLI can log them.
     let readinessDiagnostics;
     const readinessConfig = options?.readiness || utils.percy?.config?.snapshot?.readiness || {};
     if (readinessConfig.preset !== 'disabled') {
-      /* istanbul ignore next: no instrumenting injected code */
-      readinessDiagnostics = await page.evaluate((cfg) => {
-        /* eslint-disable-next-line no-undef */
-        if (typeof PercyDOM !== 'undefined' && typeof PercyDOM.waitForReady === 'function') {
-          /* eslint-disable-next-line no-undef */
-          return PercyDOM.waitForReady(cfg);
-        }
-      }, readinessConfig).catch(err => {
+      readinessDiagnostics = await page.evaluate(browserWaitForReady, readinessConfig).catch(err => {
         log.debug(`waitForReady failed, proceeding to serialize: ${err?.message || err}`);
       });
     }
@@ -63,3 +68,4 @@ async function percySnapshot(page, name, options) {
 }
 
 module.exports = percySnapshot;
+module.exports.__test__ = { browserWaitForReady };

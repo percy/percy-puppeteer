@@ -2,6 +2,8 @@ import puppeteer from 'puppeteer';
 import helpers from '@percy/sdk-utils/test/helpers';
 import percySnapshot from '../index.js';
 
+const { browserWaitForReady } = percySnapshot.__test__;
+
 describe('percySnapshot', () => {
   let browser, page;
 
@@ -126,6 +128,25 @@ describe('percySnapshot', () => {
       ]));
     });
 
+    it('still runs serialize when waitForReady rejects with a non-Error', async () => {
+      // Exercises the `err?.message || err` second branch: when the rejection
+      // value has no `.message` (e.g. a plain string), we fall through to
+      // stringifying the err itself.
+      const origEvaluate = page.evaluate.bind(page);
+      spyOn(page, 'evaluate').and.callFake((fn, ...rest) => {
+        if (typeof fn === 'function' && fn.toString().includes('waitForReady')) {
+          return Promise.reject('plain-string-rejection');
+        }
+        return origEvaluate(fn, ...rest);
+      });
+
+      await percySnapshot(page, 'readiness-reject-string');
+
+      expect(helpers.logger.stderr).not.toEqual(jasmine.arrayContaining([
+        '[percy] Could not take DOM snapshot "readiness-reject-string"'
+      ]));
+    });
+
     it('attaches diagnostics returned by waitForReady to domSnapshot', async () => {
       const diagnostics = { passed: true, timed_out: false, preset: 'balanced', total_duration_ms: 84, checks: {} };
       const domSnapshot = { html: '<html></html>' };
@@ -143,5 +164,37 @@ describe('percySnapshot', () => {
 
       expect(domSnapshot.readiness_diagnostics).toEqual(diagnostics);
     });
+  });
+});
+
+// Unit tests for the in-browser readiness invoker. These run in Node against
+// a stubbed `PercyDOM` global so the typeof-guard branches are real
+// statement/branch coverage — that's why index.js no longer needs
+// `/* istanbul ignore next */` around the page.evaluate callback.
+describe('browserWaitForReady', () => {
+  afterEach(() => {
+    delete globalThis.PercyDOM;
+  });
+
+  it('returns undefined when PercyDOM is undefined', () => {
+    expect(browserWaitForReady({ preset: 'balanced' })).toBeUndefined();
+  });
+
+  it('returns undefined when PercyDOM lacks waitForReady', () => {
+    globalThis.PercyDOM = {};
+    expect(browserWaitForReady({ preset: 'balanced' })).toBeUndefined();
+  });
+
+  it('forwards config to PercyDOM.waitForReady and returns its value', async () => {
+    const diagnostics = { passed: true, preset: 'strict' };
+    const waitForReady = jasmine.createSpy('waitForReady')
+      .and.returnValue(Promise.resolve(diagnostics));
+    globalThis.PercyDOM = { waitForReady };
+
+    const config = { preset: 'strict', stabilityWindowMs: 500 };
+    const result = browserWaitForReady(config);
+
+    expect(waitForReady).toHaveBeenCalledWith(config);
+    await expectAsync(result).toBeResolvedTo(diagnostics);
   });
 });
