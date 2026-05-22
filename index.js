@@ -23,6 +23,7 @@ async function percySnapshot(page, name, options) {
     // doesn't ship the helper — degrades to no-op (the same behaviour as an
     // old CLI without PercyDOM.waitForReady).
     let readinessDiagnostics;
+    /* istanbul ignore else: covered once sdk-utils 1.31.15 is published */
     if (typeof utils.runReadinessGate === 'function') {
       readinessDiagnostics = await utils.runReadinessGate(
         (script) => page.evaluate(script),
