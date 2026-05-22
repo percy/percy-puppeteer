@@ -251,11 +251,11 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
       try { pageHost = new URL(page.url()).hostname; } catch (_) { /* ignore */ }
       cookies = pageHost
         ? all.filter(c => {
-            if (!c || !c.domain) return false;
-            const d = c.domain.replace(/^\./, '').toLowerCase();
-            const h = pageHost.toLowerCase();
-            return h === d || h.endsWith(`.${d}`);
-          })
+          if (!c || !c.domain) return false;
+          const d = c.domain.replace(/^\./, '').toLowerCase();
+          const h = pageHost.toLowerCase();
+          return h === d || h.endsWith(`.${d}`);
+        })
         : all;
     }
   } catch (e) {
