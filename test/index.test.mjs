@@ -2,8 +2,6 @@ import puppeteer from 'puppeteer';
 import helpers from '@percy/sdk-utils/test/helpers';
 import percySnapshot from '../index.js';
 
-const { browserWaitForReady } = percySnapshot.__test__;
-
 describe('percySnapshot', () => {
   let browser, page;
 
@@ -69,14 +67,10 @@ describe('percySnapshot', () => {
   });
 
   describe('readiness gate (PER-7348)', () => {
-    const isReadinessEval = (args) => {
-      const fn = args[0];
-      return typeof fn === 'function' && fn.toString().includes('waitForReady');
-    };
-    const isSerializeEval = (args) => {
-      const fn = args[0];
-      return typeof fn === 'function' && fn.toString().includes('PercyDOM.serialize');
-    };
+    // The readiness call sends a STRING script (from sdk-utils.waitForReadyScript);
+    // serialize sends a FUNCTION reference. That difference lets us identify each call.
+    const isReadinessEval = (args) => typeof args[0] === 'string' && args[0].includes('PercyDOM.waitForReady');
+    const isSerializeEval = (args) => typeof args[0] === 'function' && args[0].toString().includes('PercyDOM.serialize');
 
     it('runs waitForReady before serialize by default', async () => {
       const spy = spyOn(page, 'evaluate').and.callThrough();
@@ -91,7 +85,7 @@ describe('percySnapshot', () => {
       expect(rIdx).toBeLessThan(sIdx);
     });
 
-    it('passes readiness config through to waitForReady', async () => {
+    it('inlines the readiness config as JSON into the script sent to the browser', async () => {
       const spy = spyOn(page, 'evaluate').and.callThrough();
       const readiness = { preset: 'strict', stabilityWindowMs: 500 };
 
@@ -99,7 +93,10 @@ describe('percySnapshot', () => {
 
       const readinessCall = spy.calls.allArgs().find(isReadinessEval);
       expect(readinessCall).toBeDefined();
-      expect(readinessCall[1]).toEqual(readiness);
+      // sdk-utils.waitForReadyScript inlines the config via JSON.stringify
+      // rather than passing it as a separate page.evaluate argument.
+      expect(readinessCall[0]).toContain('"preset":"strict"');
+      expect(readinessCall[0]).toContain('"stabilityWindowMs":500');
     });
 
     it('skips waitForReady when preset is disabled', async () => {
@@ -114,11 +111,11 @@ describe('percySnapshot', () => {
 
     it('still runs serialize when waitForReady rejects', async () => {
       const origEvaluate = page.evaluate.bind(page);
-      spyOn(page, 'evaluate').and.callFake((fn, ...rest) => {
-        if (typeof fn === 'function' && fn.toString().includes('waitForReady')) {
+      spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
+        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
           return Promise.reject(new Error('readiness boom'));
         }
-        return origEvaluate(fn, ...rest);
+        return origEvaluate(script, ...rest);
       });
 
       await percySnapshot(page, 'readiness-reject');
@@ -129,15 +126,14 @@ describe('percySnapshot', () => {
     });
 
     it('still runs serialize when waitForReady rejects with a non-Error', async () => {
-      // Exercises the `err?.message || err` second branch: when the rejection
-      // value has no `.message` (e.g. a plain string), we fall through to
-      // stringifying the err itself.
+      // Covers the `err?.message || err` second branch: a string rejection
+      // has no `.message`, so logging falls through to stringifying err itself.
       const origEvaluate = page.evaluate.bind(page);
-      spyOn(page, 'evaluate').and.callFake((fn, ...rest) => {
-        if (typeof fn === 'function' && fn.toString().includes('waitForReady')) {
+      spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
+        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
           return Promise.reject('plain-string-rejection');
         }
-        return origEvaluate(fn, ...rest);
+        return origEvaluate(script, ...rest);
       });
 
       await percySnapshot(page, 'readiness-reject-string');
@@ -150,11 +146,11 @@ describe('percySnapshot', () => {
     it('attaches diagnostics returned by waitForReady to domSnapshot', async () => {
       const diagnostics = { passed: true, timed_out: false, preset: 'balanced', total_duration_ms: 84, checks: {} };
       const domSnapshot = { html: '<html></html>' };
-      spyOn(page, 'evaluate').and.callFake((fn) => {
-        if (typeof fn === 'function' && fn.toString().includes('waitForReady')) {
+      spyOn(page, 'evaluate').and.callFake((script) => {
+        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
           return Promise.resolve(diagnostics);
         }
-        if (typeof fn === 'function' && fn.toString().includes('PercyDOM.serialize')) {
+        if (typeof script === 'function' && script.toString().includes('PercyDOM.serialize')) {
           return Promise.resolve(domSnapshot);
         }
         return Promise.resolve();
@@ -164,37 +160,5 @@ describe('percySnapshot', () => {
 
       expect(domSnapshot.readiness_diagnostics).toEqual(diagnostics);
     });
-  });
-});
-
-// Unit tests for the in-browser readiness invoker. These run in Node against
-// a stubbed `PercyDOM` global so the typeof-guard branches are real
-// statement/branch coverage — that's why index.js no longer needs
-// `/* istanbul ignore next */` around the page.evaluate callback.
-describe('browserWaitForReady', () => {
-  afterEach(() => {
-    delete globalThis.PercyDOM;
-  });
-
-  it('returns undefined when PercyDOM is undefined', () => {
-    expect(browserWaitForReady({ preset: 'balanced' })).toBeUndefined();
-  });
-
-  it('returns undefined when PercyDOM lacks waitForReady', () => {
-    globalThis.PercyDOM = {};
-    expect(browserWaitForReady({ preset: 'balanced' })).toBeUndefined();
-  });
-
-  it('forwards config to PercyDOM.waitForReady and returns its value', async () => {
-    const diagnostics = { passed: true, preset: 'strict' };
-    const waitForReady = jasmine.createSpy('waitForReady')
-      .and.returnValue(Promise.resolve(diagnostics));
-    globalThis.PercyDOM = { waitForReady };
-
-    const config = { preset: 'strict', stabilityWindowMs: 500 };
-    const result = browserWaitForReady(config);
-
-    expect(waitForReady).toHaveBeenCalledWith(config);
-    await expectAsync(result).toBeResolvedTo(diagnostics);
   });
 });
