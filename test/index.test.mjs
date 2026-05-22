@@ -653,6 +653,43 @@ describe('cross-origin iframe handling', () => {
     expect(browserContextCookies).toHaveBeenCalled();
   });
 
+  it('filters browserContext cookies to the page host (Puppeteer v23+ scoping)', async () => {
+    const page = buildMockPage({
+      pageUrl: 'https://app.example.com/',
+      pageHtml: '<html><body>scoped</body></html>',
+      frames: []
+    });
+
+    const all = [
+      { name: 'same', value: 'a', domain: 'app.example.com' },
+      { name: 'subdomain', value: 'b', domain: '.example.com' },
+      { name: 'other', value: 'c', domain: 'other.com' },
+      { name: 'malformed', value: 'd' }
+    ];
+    const bcCookies = jasmine.createSpy('bc.cookies').and.returnValue(Promise.resolve(all));
+    delete page.cookies;
+    page.browserContext = () => ({ cookies: bcCookies });
+
+    await percySnapshot(page, 'BC Filter');
+    expect(bcCookies).toHaveBeenCalled();
+  });
+
+  it('does not filter browserContext cookies when page URL is opaque (about:blank)', async () => {
+    const page = buildMockPage({
+      pageUrl: 'about:blank',
+      pageHtml: '<html><body>opaque</body></html>',
+      frames: []
+    });
+
+    const bcCookies = jasmine.createSpy('bc.cookies')
+      .and.returnValue(Promise.resolve([{ name: 'whatever', value: 'v', domain: 'example.com' }]));
+    delete page.cookies;
+    page.browserContext = () => ({ cookies: bcCookies });
+
+    await percySnapshot(page, 'BC Opaque');
+    expect(bcCookies).toHaveBeenCalled();
+  });
+
   it('does not abort the snapshot when both cookie APIs throw', async () => {
     const page = buildMockPage({
       pageUrl: 'https://example.com/',
