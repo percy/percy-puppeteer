@@ -1,4 +1,4 @@
-const utils = require('@percy/sdk-utils');
+const utils = require('./_iframe_shim');
 const {
   resolveMaxFrameDepth,
   resolveIgnoreSelectors,
@@ -243,7 +243,20 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
     if (typeof page.cookies === 'function') {
       cookies = await page.cookies();
     } else if (typeof page.browserContext === 'function') {
-      cookies = await page.browserContext().cookies();
+      // Puppeteer v23+ returns context-wide cookies (not page-scoped). Filter
+      // to the page's registrable origin so cross-domain cookies from other
+      // tabs in the same context don't leak into the snapshot payload.
+      const all = await page.browserContext().cookies();
+      let pageHost = '';
+      try { pageHost = new URL(page.url()).hostname; } catch (_) { /* ignore */ }
+      cookies = pageHost
+        ? all.filter(c => {
+            if (!c || !c.domain) return false;
+            const d = c.domain.replace(/^\./, '').toLowerCase();
+            const h = pageHost.toLowerCase();
+            return h === d || h.endsWith(`.${d}`);
+          })
+        : all;
     }
   } catch (e) {
     log.debug(`Could not collect cookies: ${e.message}`);
