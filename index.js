@@ -18,19 +18,13 @@ async function percySnapshot(page, name, options) {
     await page.evaluate(await utils.fetchPercyDOM());
 
     // Readiness gate. All orchestration lives in @percy/sdk-utils
-    // 1.31.15+: disabled-check + shallow-merge config + script generation +
-    // try/catch. typeof guard for backward compat with older sdk-utils that
-    // doesn't ship the helper — degrades to no-op (the same behaviour as an
-    // old CLI without PercyDOM.waitForReady).
-    let readinessDiagnostics;
-    /* istanbul ignore else: covered once sdk-utils 1.31.15 is published */
-    if (typeof utils.runReadinessGate === 'function') {
-      readinessDiagnostics = await utils.runReadinessGate(
-        (script) => page.evaluate(script),
-        options,
-        { log }
-      );
-    }
+    // (disabled-check + shallow-merge config + script generation + try/catch).
+    // The package.json floor pins runReadinessGate to be present.
+    const readinessDiagnostics = await utils.runReadinessGate(
+      (script) => page.evaluate(script),
+      options,
+      { log }
+    );
 
     // Serialize and capture the DOM
     /* istanbul ignore next: no instrumenting injected code */
