@@ -91,7 +91,7 @@ describe('percySnapshot', () => {
     ]));
   });
 
-  describe('readiness gate (PER-7348)', () => {
+  describe('readiness gate', () => {
     // The readiness call sends a STRING script (from sdk-utils.waitForReadyScript);
     // serialize sends a FUNCTION reference. That difference lets us identify each call.
     const isReadinessEval = (args) => typeof args[0] === 'string' && args[0].includes('PercyDOM.waitForReady');

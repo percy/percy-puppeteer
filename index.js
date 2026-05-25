@@ -17,7 +17,7 @@ async function percySnapshot(page, name, options) {
     // Inject the DOM serialization script
     await page.evaluate(await utils.fetchPercyDOM());
 
-    // Readiness gate (PER-7348). All orchestration lives in @percy/sdk-utils
+    // Readiness gate. All orchestration lives in @percy/sdk-utils
     // 1.31.15+: disabled-check + shallow-merge config + script generation +
     // try/catch. typeof guard for backward compat with older sdk-utils that
     // doesn't ship the helper — degrades to no-op (the same behaviour as an
