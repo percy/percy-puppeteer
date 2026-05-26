@@ -374,11 +374,25 @@ async function percySnapshot(page, name, options) {
     const percyDOM = await utils.fetchPercyDOM();
     await page.evaluate(percyDOM);
 
+    // Readiness gate. All orchestration lives in @percy/sdk-utils
+    // (disabled-check + shallow-merge config + script generation + try/catch).
+    // The package.json floor pins runReadinessGate to be present.
+    const readinessDiagnostics = await utils.runReadinessGate(
+      (script) => page.evaluate(script),
+      options,
+      { log }
+    );
+
     // Expose closed shadow roots via CDP before serialization so
     // PercyDOM.serialize() can access them through the WeakMap
     await exposeClosedShadowRoots(page);
 
     let domSnapshot = await captureSerializedDOM(page, options || {}, percyDOM);
+
+    // Attach readiness diagnostics so the CLI can log timing and pass/fail
+    if (readinessDiagnostics && domSnapshot && typeof domSnapshot === 'object') {
+      domSnapshot.readiness_diagnostics = readinessDiagnostics;
+    }
 
     // Post the DOM to the snapshot endpoint with snapshot options and other info
     await utils.postSnapshot({
