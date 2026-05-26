@@ -1,12 +1,41 @@
 import puppeteer from 'puppeteer';
+import utils from '@percy/sdk-utils';
 import helpers from '@percy/sdk-utils/test/helpers';
 import percySnapshot from '../index.js';
+
+// Forward-compat shim: `utils.runReadinessGate` is the orchestrator added
+// in @percy/sdk-utils 1.31.15. Until that version is published, polyfill
+// it here so the tests exercise the real call shape (page.evaluate with
+// the script string) instead of being skipped by the SDK's typeof guard.
+// Once 1.31.15 lands, this becomes a no-op.
+if (typeof utils.runReadinessGate !== 'function') {
+  utils.runReadinessGate = async function runReadinessGate(evalScript, snapshotOptions = {}, { callback = false, log } = {}) {
+    if (typeof utils.isReadinessDisabled === 'function' && utils.isReadinessDisabled(snapshotOptions)) return null;
+    const config = typeof utils.getReadinessConfig === 'function'
+      ? utils.getReadinessConfig(snapshotOptions)
+      : { ...(utils.percy?.config?.snapshot?.readiness || {}), ...(snapshotOptions?.readiness || {}) };
+    const script = typeof utils.waitForReadyScript === 'function'
+      ? utils.waitForReadyScript(config, { callback })
+      : null;
+    if (!script) return null;
+    try {
+      return await evalScript(script);
+    } catch (err) {
+      log?.debug?.(`waitForReady failed, proceeding to serialize: ${err?.message || err}`);
+      return null;
+    }
+  };
+}
 
 describe('percySnapshot', () => {
   let browser, page;
 
   beforeAll(async function() {
-    browser = await puppeteer.launch();
+    // GitHub-hosted Ubuntu runners disable the Chromium SUID sandbox, so
+    // puppeteer.launch() needs --no-sandbox to bring up the browser in CI.
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
   });
 
   afterAll(async () => {
@@ -60,5 +89,101 @@ describe('percySnapshot', () => {
     expect(helpers.logger.stderr).toEqual(jasmine.arrayContaining([
       '[percy] Could not take DOM snapshot "Snapshot 1"'
     ]));
+  });
+
+  describe('readiness gate', () => {
+    // The readiness call sends a STRING script (from sdk-utils.waitForReadyScript);
+    // serialize sends a FUNCTION reference. That difference lets us identify each call.
+    const isReadinessEval = (args) => typeof args[0] === 'string' && args[0].includes('PercyDOM.waitForReady');
+    const isSerializeEval = (args) => typeof args[0] === 'function' && args[0].toString().includes('PercyDOM.serialize');
+
+    it('runs waitForReady before serialize by default', async () => {
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+
+      await percySnapshot(page, 'readiness-happy-path');
+
+      const calls = spy.calls.allArgs();
+      const rIdx = calls.findIndex(isReadinessEval);
+      const sIdx = calls.findIndex(isSerializeEval);
+      expect(rIdx).toBeGreaterThanOrEqual(0);
+      expect(sIdx).toBeGreaterThanOrEqual(0);
+      expect(rIdx).toBeLessThan(sIdx);
+    });
+
+    it('inlines the readiness config as JSON into the script sent to the browser', async () => {
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+      const readiness = { preset: 'strict', stabilityWindowMs: 500 };
+
+      await percySnapshot(page, 'readiness-config', { readiness });
+
+      const readinessCall = spy.calls.allArgs().find(isReadinessEval);
+      expect(readinessCall).toBeDefined();
+      // sdk-utils.waitForReadyScript inlines the config via JSON.stringify
+      // rather than passing it as a separate page.evaluate argument.
+      expect(readinessCall[0]).toContain('"preset":"strict"');
+      expect(readinessCall[0]).toContain('"stabilityWindowMs":500');
+    });
+
+    it('skips waitForReady when preset is disabled', async () => {
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+
+      await percySnapshot(page, 'readiness-disabled', { readiness: { preset: 'disabled' } });
+
+      const readinessCall = spy.calls.allArgs().find(isReadinessEval);
+      expect(readinessCall).toBeUndefined();
+      expect(spy.calls.allArgs().find(isSerializeEval)).toBeDefined();
+    });
+
+    it('still runs serialize when waitForReady rejects', async () => {
+      const origEvaluate = page.evaluate.bind(page);
+      spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
+        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
+          return Promise.reject(new Error('readiness boom'));
+        }
+        return origEvaluate(script, ...rest);
+      });
+
+      await percySnapshot(page, 'readiness-reject');
+
+      expect(helpers.logger.stderr).not.toEqual(jasmine.arrayContaining([
+        '[percy] Could not take DOM snapshot "readiness-reject"'
+      ]));
+    });
+
+    it('still runs serialize when waitForReady rejects with a non-Error', async () => {
+      // Covers the `err?.message || err` second branch: a string rejection
+      // has no `.message`, so logging falls through to stringifying err itself.
+      const origEvaluate = page.evaluate.bind(page);
+      spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
+        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
+          return Promise.reject('plain-string-rejection');
+        }
+        return origEvaluate(script, ...rest);
+      });
+
+      await percySnapshot(page, 'readiness-reject-string');
+
+      expect(helpers.logger.stderr).not.toEqual(jasmine.arrayContaining([
+        '[percy] Could not take DOM snapshot "readiness-reject-string"'
+      ]));
+    });
+
+    it('attaches diagnostics returned by waitForReady to domSnapshot', async () => {
+      const diagnostics = { passed: true, timed_out: false, preset: 'balanced', total_duration_ms: 84, checks: {} };
+      const domSnapshot = { html: '<html></html>' };
+      spyOn(page, 'evaluate').and.callFake((script) => {
+        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
+          return Promise.resolve(diagnostics);
+        }
+        if (typeof script === 'function' && script.toString().includes('PercyDOM.serialize')) {
+          return Promise.resolve(domSnapshot);
+        }
+        return Promise.resolve();
+      });
+
+      await percySnapshot(page, 'readiness-diagnostics');
+
+      expect(domSnapshot.readiness_diagnostics).toEqual(diagnostics);
+    });
   });
 });

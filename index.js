@@ -17,12 +17,26 @@ async function percySnapshot(page, name, options) {
     // Inject the DOM serialization script
     await page.evaluate(await utils.fetchPercyDOM());
 
+    // Readiness gate. All orchestration lives in @percy/sdk-utils
+    // (disabled-check + shallow-merge config + script generation + try/catch).
+    // The package.json floor pins runReadinessGate to be present.
+    const readinessDiagnostics = await utils.runReadinessGate(
+      (script) => page.evaluate(script),
+      options,
+      { log }
+    );
+
     // Serialize and capture the DOM
     /* istanbul ignore next: no instrumenting injected code */
     let domSnapshot = await page.evaluate((options) => {
       /* eslint-disable-next-line no-undef */
       return PercyDOM.serialize(options);
     }, options);
+
+    // Attach readiness diagnostics so the CLI can log timing and pass/fail
+    if (readinessDiagnostics && domSnapshot && typeof domSnapshot === 'object') {
+      domSnapshot.readiness_diagnostics = readinessDiagnostics;
+    }
 
     // Post the DOM to the snapshot endpoint with snapshot options and other info
     await utils.postSnapshot({
