@@ -1,7 +1,6 @@
 import puppeteer from 'puppeteer';
 import utils from '@percy/sdk-utils';
 import helpers from '@percy/sdk-utils/test/helpers';
-import utils from '@percy/sdk-utils';
 import percySnapshot from '../index.js';
 
 // Forward-compat shim: `utils.runReadinessGate` is the orchestrator added
