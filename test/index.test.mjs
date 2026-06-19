@@ -107,9 +107,14 @@ describe('percySnapshot', () => {
   });
 
   describe('readiness gate', () => {
-    // The readiness call sends a STRING script (from sdk-utils.waitForReadyScript);
-    // serialize sends a FUNCTION reference. That difference lets us identify each call.
-    const isReadinessEval = (args) => typeof args[0] === 'string' && args[0].includes('PercyDOM.waitForReady');
+    // page.evaluate receives three kinds of arg: the @percy/dom bundle STRING
+    // (which now *defines* PercyDOM.waitForReady, so it contains the substring
+    // "PercyDOM.waitForReady"), the readiness STRING from
+    // sdk-utils.waitForReadyScript (which *invokes* it behind the guard
+    // `typeof PercyDOM.waitForReady === 'function'`), and the serialize FUNCTION.
+    // Match the readiness call by that invocation guard so we don't accidentally
+    // pick up the bundle-definition string.
+    const isReadinessEval = (args) => typeof args[0] === 'string' && args[0].includes("typeof PercyDOM.waitForReady === 'function'");
     const isSerializeEval = (args) => typeof args[0] === 'function' && args[0].toString().includes('PercyDOM.serialize');
 
     it('runs waitForReady before serialize by default', async () => {
@@ -152,7 +157,7 @@ describe('percySnapshot', () => {
     it('still runs serialize when waitForReady rejects', async () => {
       const origEvaluate = page.evaluate.bind(page);
       spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
-        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
+        if (typeof script === 'string' && script.includes("typeof PercyDOM.waitForReady === 'function'")) {
           return Promise.reject(new Error('readiness boom'));
         }
         return origEvaluate(script, ...rest);
@@ -170,7 +175,7 @@ describe('percySnapshot', () => {
       // has no `.message`, so logging falls through to stringifying err itself.
       const origEvaluate = page.evaluate.bind(page);
       spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
-        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
+        if (typeof script === 'string' && script.includes("typeof PercyDOM.waitForReady === 'function'")) {
           return Promise.reject('plain-string-rejection');
         }
         return origEvaluate(script, ...rest);
@@ -187,7 +192,7 @@ describe('percySnapshot', () => {
       const diagnostics = { passed: true, timed_out: false, preset: 'balanced', total_duration_ms: 84, checks: {} };
       const domSnapshot = { html: '<html></html>' };
       spyOn(page, 'evaluate').and.callFake((script) => {
-        if (typeof script === 'string' && script.includes('PercyDOM.waitForReady')) {
+        if (typeof script === 'string' && script.includes("typeof PercyDOM.waitForReady === 'function'")) {
           return Promise.resolve(diagnostics);
         }
         if (typeof script === 'function' && script.toString().includes('PercyDOM.serialize')) {
