@@ -285,10 +285,15 @@ async function exposeClosedShadowRoots(page) {
   try {
     await client.send('DOM.enable');
 
-    // Performance note: DOM.getDocument with pierce:true traverses the entire DOM
-    // including all shadow trees, which can be expensive for large apps. A future
-    // optimization could add a cheap pre-check to skip this when no closed shadow
-    // roots exist on the page.
+    // Performance note: pierce:true is intentionally scoped to this single
+    // DOM.getDocument call — it is the only CDP traversal needed to discover
+    // closed shadow roots, and the subsequent DOM.resolveNode calls target
+    // specific backendNodeIds rather than re-walking the tree. The traversal
+    // still walks every shadow tree, so a future optimization could gate it
+    // behind a cheap pre-check (e.g. a monkey-patched Element.prototype.attachShadow
+    // in PercyDOM that flags when a {mode:'closed'} root is ever created) to skip
+    // the pierce cost entirely on the common case of pages with no closed shadows.
+    // That requires a shared PercyDOM change, so it is deferred. Matches percy-playwright.
     const { root } = await client.send('DOM.getDocument', {
       depth: -1,
       pierce: true
@@ -342,6 +347,12 @@ async function exposeClosedShadowRoots(page) {
         backendNodeId: pair.shadowBackendNodeId
       });
 
+      // Runtime.callFunctionOn without an explicit executionContextId runs in the
+      // context of the passed objectId. Because the contentDocument guard in
+      // walkNodes() drops any host that lives inside a child frame, hostObj here
+      // always resolves into the top frame's main world via DOM.resolveNode —
+      // the same context where page.evaluate() created window.__percyClosedShadowRoots.
+      // This is load-bearing for the WeakMap lookup during PercyDOM.serialize().
       /* istanbul ignore next: CDP-injected function */
       await client.send('Runtime.callFunctionOn', {
         functionDeclaration: 'function(shadowRoot) { window.__percyClosedShadowRoots.set(this, shadowRoot); }',
