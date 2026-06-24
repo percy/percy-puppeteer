@@ -114,12 +114,54 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
   const mainFrame = (page.mainFrame && page.mainFrame()) || allFrames[0];
   log.debug(`Found ${allFrames.length} total frame(s) on page`);
 
+  // Apply the cheap, in-process filters first (main-frame, scheme, depth cap,
+  // cycle, cross-origin) so the depth cap actually bounds how much work we do.
+  // Only frames that survive these become candidates for the expensive
+  // per-frame parent.evaluate() ignore-flag round-trip below. This keeps a
+  // malformed page with many deep/same-origin frames from amplifying into one
+  // browser round-trip per frame before the cap is enforced.
+  const candidateFrames = allFrames
+    .filter(frame => {
+      // Skip the main frame — only iframes are candidates here.
+      if (frame === mainFrame) return false;
+
+      const frameUrl = frame.url();
+      if (!frameUrl || isUnsupportedIframeSrc(frameUrl)) {
+        if (frameUrl) log.debug(`Skipping unsupported iframe src: ${frameUrl}`);
+        return false;
+      }
+      const depth = frameDepth(frame);
+      if (depth > maxFrameDepth) {
+        log.debug(`Skipping iframe at depth ${depth} (max ${maxFrameDepth}): ${frameUrl}`);
+        return false;
+      }
+      if (isCyclicFrame(frame)) {
+        log.debug(`Skipping cyclic iframe (${frameUrl} appears in ancestor chain)`);
+        return false;
+      }
+      try {
+        // Cross-origin relative to the immediate parent — that's the boundary
+        // PercyDOM cannot cross with srcdoc inlining. For top-level iframes
+        // this is page.url(); for nested ones it's the enclosing frame's URL.
+        const parent = frame.parentFrame && frame.parentFrame();
+        const parentUrl = (parent && parent.url && parent.url()) || page.url();
+        const parentOrigin = parentUrl ? new URL(parentUrl).origin : null;
+        const frameOrigin = new URL(frameUrl).origin;
+        const isCrossOrigin = parentOrigin !== null && frameOrigin !== parentOrigin;
+        if (!isCrossOrigin) log.debug(`Skipping same-origin iframe: ${frameUrl}`);
+        return isCrossOrigin;
+      } catch {
+        log.debug(`Skipping iframe with invalid URL: ${frameUrl}`);
+        return false;
+      }
+    });
+
   // Resolve per-frame `data-percy-ignore` and ignoreIframeSelectors flags from
-  // the parent frame's DOM (where the <iframe> element actually lives) before
-  // the cross-origin filter. Done in parallel since each is a single round-trip.
+  // the parent frame's DOM (where the <iframe> element actually lives). Done in
+  // parallel since each is a single round-trip — now only for surviving
+  // candidates, not every frame on the page.
   const ignoreFlagsByFrame = new Map();
-  await Promise.all(allFrames.map(async (frame) => {
-    if (frame === mainFrame) return;
+  await Promise.all(candidateFrames.map(async (frame) => {
     try {
       const parent = (frame.parentFrame && frame.parentFrame()) || mainFrame;
       /* istanbul ignore next: browser-executed evaluate callback — the function
@@ -151,11 +193,8 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
     }
   }));
 
-  const crossOriginFrames = allFrames
+  const crossOriginFrames = candidateFrames
     .filter(frame => {
-      // Skip the main frame — only iframes are candidates here.
-      if (frame === mainFrame) return false;
-
       const flags = ignoreFlagsByFrame.get(frame) || {};
       if (flags.dataPercyIgnore) {
         log.debug(`Skipping iframe marked with data-percy-ignore: ${frame.url()}`);
@@ -165,36 +204,7 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
         log.debug(`Skipping iframe matching ignoreIframeSelectors: ${frame.url()}`);
         return false;
       }
-
-      const frameUrl = frame.url();
-      if (!frameUrl || isUnsupportedIframeSrc(frameUrl)) {
-        if (frameUrl) log.debug(`Skipping unsupported iframe src: ${frameUrl}`);
-        return false;
-      }
-      const depth = frameDepth(frame);
-      if (depth > maxFrameDepth) {
-        log.debug(`Skipping iframe at depth ${depth} (max ${maxFrameDepth}): ${frameUrl}`);
-        return false;
-      }
-      if (isCyclicFrame(frame)) {
-        log.debug(`Skipping cyclic iframe (${frameUrl} appears in ancestor chain)`);
-        return false;
-      }
-      try {
-        // Cross-origin relative to the immediate parent — that's the boundary
-        // PercyDOM cannot cross with srcdoc inlining. For top-level iframes
-        // this is page.url(); for nested ones it's the enclosing frame's URL.
-        const parent = frame.parentFrame && frame.parentFrame();
-        const parentUrl = (parent && parent.url && parent.url()) || page.url();
-        const parentOrigin = parentUrl ? new URL(parentUrl).origin : null;
-        const frameOrigin = new URL(frameUrl).origin;
-        const isCrossOrigin = parentOrigin !== null && frameOrigin !== parentOrigin;
-        if (!isCrossOrigin) log.debug(`Skipping same-origin iframe: ${frameUrl}`);
-        return isCrossOrigin;
-      } catch {
-        log.debug(`Skipping iframe with invalid URL: ${frameUrl}`);
-        return false;
-      }
+      return true;
     });
 
   log.debug(`Found ${crossOriginFrames.length} cross-origin iframe(s) to process (across all depths)`);
@@ -229,8 +239,11 @@ async function captureSerializedDOM(page, options, percyDOMScript) {
     )
   )).filter(Boolean);
 
-  domSnapshot.corsIframes = processedFrames;
+  // Only attach corsIframes when there is at least one cross-origin iframe, so
+  // the snapshot payload shape is unchanged for the 100% of pages that have
+  // none. Matches percy-nightwatch's captureSerializedDOM behavior.
   if (processedFrames.length > 0) {
+    domSnapshot.corsIframes = processedFrames;
     log.debug(`Captured ${processedFrames.length} cross-origin iframe(s)`);
   }
 
