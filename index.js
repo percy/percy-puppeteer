@@ -1,4 +1,5 @@
-const utils = require('./_iframe_shim');
+// Canonical iframe-capture helpers, single source of truth (percy/cli #2319).
+const utils = require('@percy/sdk-utils');
 const {
   resolveMaxFrameDepth,
   resolveIgnoreSelectors,

@@ -1,5 +1,5 @@
 {
-  "exclude": ["test", "_iframe_shim.js"],
+  "exclude": ["test"],
   "check-coverage": true,
   "branches": 100,
   "lines": 100,
