@@ -26,7 +26,7 @@
     "test:types": "tsd"
   },
   "dependencies": {
-    "@percy/sdk-utils": "^1.32.0-beta.6"
+    "@percy/sdk-utils": "1.32.3-beta.1"
   },
   "peerDependencies": {
     "puppeteer": ">=1"
