@@ -1,5 +1,6 @@
 const utils = require('@percy/sdk-utils');
 
+// CI smoke test: trivial comment to verify the test/build pipeline runs green.
 // Collect client and environment information
 const sdkPkg = require('./package.json');
 const puppeteerPkg = require('puppeteer/package.json');
