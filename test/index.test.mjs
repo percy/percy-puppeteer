@@ -81,6 +81,21 @@ describe('percySnapshot', () => {
     ]));
   });
 
+  it('posts snapshots when config.snapshot is undefined', async () => {
+    await percySnapshot(page, 'Snapshot to populate config');
+
+    const savedConfig = utils.percy.config;
+    utils.percy.config = { ...savedConfig, snapshot: undefined };
+
+    await percySnapshot(page, 'Snapshot without config');
+
+    utils.percy.config = savedConfig;
+
+    expect(await helpers.get('logs')).toEqual(jasmine.arrayContaining([
+      'Snapshot found: Snapshot without config'
+    ]));
+  });
+
   it('handles snapshot failures', async () => {
     await helpers.test('error', '/percy/snapshot');
 

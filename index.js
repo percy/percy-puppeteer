@@ -408,11 +408,13 @@ async function percySnapshot(page, name, options) {
       { log }
     );
 
+    // Merge .percy.yml config options with snapshot options (snapshot options take priority)
+    const mergedOptions = utils.mergeSnapshotOptions(options);
     // Expose closed shadow roots via CDP before serialization so
     // PercyDOM.serialize() can access them through the WeakMap
     await exposeClosedShadowRoots(page);
 
-    let domSnapshot = await captureSerializedDOM(page, options || {}, percyDOM);
+    let domSnapshot = await captureSerializedDOM(page, mergedOptions, percyDOM);
 
     // Attach readiness diagnostics so the CLI can log timing and pass/fail
     if (readinessDiagnostics && domSnapshot && typeof domSnapshot === 'object') {
