@@ -159,6 +159,28 @@ describe('percySnapshot', () => {
       expect(spy.calls.allArgs().find(isSerializeEval)).toBeDefined();
     });
 
+    it('skips waitForReady when JavaScript is disabled on the page', async () => {
+      await page.setJavaScriptEnabled(false);
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+
+      await percySnapshot(page, 'readiness-js-disabled');
+
+      expect(spy.calls.allArgs().find(isReadinessEval)).toBeUndefined();
+      expect(spy.calls.allArgs().find(isSerializeEval)).toBeDefined();
+      expect(helpers.logger.stderr).not.toEqual(jasmine.arrayContaining([
+        '[percy] Could not take DOM snapshot "readiness-js-disabled"'
+      ]));
+    });
+
+    it('runs waitForReady when the Puppeteer version has no isJavaScriptEnabled', async () => {
+      page.isJavaScriptEnabled = undefined;
+      const spy = spyOn(page, 'evaluate').and.callThrough();
+
+      await percySnapshot(page, 'readiness-no-js-detection');
+
+      expect(spy.calls.allArgs().find(isReadinessEval)).toBeDefined();
+    });
+
     it('still runs serialize when waitForReady rejects', async () => {
       const origEvaluate = page.evaluate.bind(page);
       spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
