@@ -402,11 +402,20 @@ async function percySnapshot(page, name, options) {
     // Readiness gate. All orchestration lives in @percy/sdk-utils
     // (disabled-check + shallow-merge config + script generation + try/catch).
     // The package.json floor pins runReadinessGate to be present.
-    const readinessDiagnostics = await utils.runReadinessGate(
-      (script) => page.evaluate(script),
-      options,
-      { log }
-    );
+    // Skipped on pages with JavaScript disabled (page.setJavaScriptEnabled(false)):
+    // waitForReady settles on in-page timers, which never fire without JS, so the
+    // eval would hang until Puppeteer's protocolTimeout (180s by default).
+    // Puppeteer versions without isJavaScriptEnabled() keep the gate.
+    let readinessDiagnostics = null;
+    if (typeof page.isJavaScriptEnabled === 'function' && page.isJavaScriptEnabled() === false) {
+      log.debug('JavaScript is disabled on this page, skipping the readiness gate');
+    } else {
+      readinessDiagnostics = await utils.runReadinessGate(
+        (script) => page.evaluate(script),
+        options,
+        { log }
+      );
+    }
 
     // Merge .percy.yml config options with snapshot options (snapshot options take priority)
     const mergedOptions = utils.mergeSnapshotOptions(options);
