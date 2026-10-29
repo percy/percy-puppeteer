@@ -388,6 +388,29 @@ async function exposeClosedShadowRoots(page) {
   }
 }
 
+// Wait for the page to be ready before serializing. Mirrors
+// utils.runReadinessGate, but hands the readiness config to page.evaluate as
+// a serialized argument instead of inlining it into the evaluated source, so
+// config values are only ever treated as data inside the browser.
+async function runReadinessGate(page, options) {
+  if (utils.isReadinessDisabled(options)) return null;
+  const config = utils.getReadinessConfig(options);
+
+  try {
+    /* istanbul ignore next: no instrumenting injected code */
+    return await page.evaluate((readinessConfig) => {
+      /* eslint-disable-next-line no-undef */
+      return (typeof PercyDOM !== 'undefined' && typeof PercyDOM.waitForReady === 'function')
+        /* eslint-disable-next-line no-undef */
+        ? PercyDOM.waitForReady(readinessConfig)
+        : undefined;
+    }, config);
+  } catch (err) {
+    log.debug(`waitForReady failed, proceeding to serialize: ${err?.message || err}`);
+    return null;
+  }
+}
+
 // Take a DOM snapshot and post it to the snapshot endpoint
 async function percySnapshot(page, name, options) {
   if (!page) throw new Error('A Puppeteer `page` object is required.');
@@ -399,9 +422,8 @@ async function percySnapshot(page, name, options) {
     const percyDOM = await utils.fetchPercyDOM();
     await page.evaluate(percyDOM);
 
-    // Readiness gate. All orchestration lives in @percy/sdk-utils
-    // (disabled-check + shallow-merge config + script generation + try/catch).
-    // The package.json floor pins runReadinessGate to be present.
+    // Readiness gate. The disabled-check and config merge live in
+    // @percy/sdk-utils; the config is passed to the browser as an argument.
     // Skipped on pages with JavaScript disabled (page.setJavaScriptEnabled(false)):
     // waitForReady settles on in-page timers, which never fire without JS, so the
     // eval would hang until Puppeteer's protocolTimeout (180s by default).
@@ -410,11 +432,7 @@ async function percySnapshot(page, name, options) {
     if (typeof page.isJavaScriptEnabled === 'function' && page.isJavaScriptEnabled() === false) {
       log.debug('JavaScript is disabled on this page, skipping the readiness gate');
     } else {
-      readinessDiagnostics = await utils.runReadinessGate(
-        (script) => page.evaluate(script),
-        options,
-        { log }
-      );
+      readinessDiagnostics = await runReadinessGate(page, options);
     }
 
     // Merge .percy.yml config options with snapshot options (snapshot options take priority)
