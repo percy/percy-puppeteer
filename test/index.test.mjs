@@ -3,30 +3,6 @@ import utils from '@percy/sdk-utils';
 import helpers from '@percy/sdk-utils/test/helpers';
 import percySnapshot from '../index.js';
 
-// Forward-compat shim: `utils.runReadinessGate` is the orchestrator added
-// in @percy/sdk-utils 1.31.15. Until that version is published, polyfill
-// it here so the tests exercise the real call shape (page.evaluate with
-// the script string) instead of being skipped by the SDK's typeof guard.
-// Once 1.31.15 lands, this becomes a no-op.
-if (typeof utils.runReadinessGate !== 'function') {
-  utils.runReadinessGate = async function runReadinessGate(evalScript, snapshotOptions = {}, { callback = false, log } = {}) {
-    if (typeof utils.isReadinessDisabled === 'function' && utils.isReadinessDisabled(snapshotOptions)) return null;
-    const config = typeof utils.getReadinessConfig === 'function'
-      ? utils.getReadinessConfig(snapshotOptions)
-      : { ...(utils.percy?.config?.snapshot?.readiness || {}), ...(snapshotOptions?.readiness || {}) };
-    const script = typeof utils.waitForReadyScript === 'function'
-      ? utils.waitForReadyScript(config, { callback })
-      : null;
-    if (!script) return null;
-    try {
-      return await evalScript(script);
-    } catch (err) {
-      log?.debug?.(`waitForReady failed, proceeding to serialize: ${err?.message || err}`);
-      return null;
-    }
-  };
-}
-
 describe('percySnapshot', () => {
   let browser, page;
 
@@ -109,16 +85,11 @@ describe('percySnapshot', () => {
   describe('readiness gate', () => {
     // percySnapshot makes three page.evaluate calls:
     //   1. injecting the @percy/dom bundle  — a STRING that *defines* PercyDOM
-    //      (and, on readiness-capable CLIs, includes a `PercyDOM.waitForReady` definition)
-    //   2. the readiness gate                — a STRING from sdk-utils.waitForReadyScript
-    //      that *calls* PercyDOM.waitForReady(<config>)
-    //   3. serialize                         — a FUNCTION reference
-    // Both (1) and (2) are strings containing "PercyDOM.waitForReady", so a bare
-    // substring match would mis-identify the bundle injection as the readiness eval.
-    // The bundle additionally contains "serializeDOM"; the readiness script never does,
-    // so we exclude it to target the readiness eval specifically.
+    //   2. the readiness gate                — a FUNCTION that *calls*
+    //      PercyDOM.waitForReady, with the readiness config as an argument
+    //   3. serialize                         — a FUNCTION that calls PercyDOM.serialize
     const isReadinessScript = (s) =>
-      typeof s === 'string' && s.includes('PercyDOM.waitForReady') && !s.includes('serializeDOM');
+      typeof s === 'function' && s.toString().includes('PercyDOM.waitForReady');
     const isReadinessEval = (args) => isReadinessScript(args[0]);
     const isSerializeEval = (args) => typeof args[0] === 'function' && args[0].toString().includes('PercyDOM.serialize');
 
@@ -135,7 +106,7 @@ describe('percySnapshot', () => {
       expect(rIdx).toBeLessThan(sIdx);
     });
 
-    it('inlines the readiness config as JSON into the script sent to the browser', async () => {
+    it('passes the readiness config as an evaluate argument, not as inlined source', async () => {
       const spy = spyOn(page, 'evaluate').and.callThrough();
       const readiness = { preset: 'strict', stabilityWindowMs: 500 };
 
@@ -143,10 +114,30 @@ describe('percySnapshot', () => {
 
       const readinessCall = spy.calls.allArgs().find(isReadinessEval);
       expect(readinessCall).toBeDefined();
-      // sdk-utils.waitForReadyScript inlines the config via JSON.stringify
-      // rather than passing it as a separate page.evaluate argument.
-      expect(readinessCall[0]).toContain('"preset":"strict"');
-      expect(readinessCall[0]).toContain('"stabilityWindowMs":500');
+      expect(readinessCall[1]).toEqual(jasmine.objectContaining(readiness));
+      // No evaluated source string carries the config values.
+      const sources = spy.calls.allArgs().map(args => args[0].toString());
+      expect(sources.some(src => src.includes('"preset":"strict"'))).toBe(false);
+    });
+
+    it('delivers readiness config strings to the browser as data', async () => {
+      const preset = '"});window.__percyReadinessProbe=1;//';
+      const origEvaluate = page.evaluate.bind(page);
+      let received;
+      spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
+        if (isReadinessScript(script)) {
+          /* istanbul ignore next: browser-executed probe */
+          return origEvaluate((cfg) => cfg.preset, ...rest).then(value => {
+            received = value;
+          });
+        }
+        return origEvaluate(script, ...rest);
+      });
+
+      await percySnapshot(page, 'readiness-config-data', { readiness: { preset } });
+
+      expect(received).toEqual(preset);
+      expect(await origEvaluate(() => window.__percyReadinessProbe)).toBeUndefined();
     });
 
     it('skips waitForReady when preset is disabled', async () => {
