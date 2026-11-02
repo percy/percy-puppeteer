@@ -123,12 +123,20 @@ describe('percySnapshot', () => {
     it('delivers readiness config strings to the browser as data', async () => {
       const preset = '"});window.__percyReadinessProbe=1;//';
       const origEvaluate = page.evaluate.bind(page);
-      let received;
-      spyOn(page, 'evaluate').and.callFake((script, ...rest) => {
+      spyOn(page, 'evaluate').and.callFake(async (script, ...rest) => {
         if (isReadinessScript(script)) {
-          /* istanbul ignore next: browser-executed probe */
-          return origEvaluate((cfg) => cfg.preset, ...rest).then(value => {
-            received = value;
+          // Record the config PercyDOM.waitForReady receives, then run the
+          // SDK's real readiness function unchanged. The test CLI's PercyDOM
+          // may predate waitForReady, so fall back to a resolved stub.
+          /* istanbul ignore next: browser-executed instrumentation */
+          await origEvaluate(() => {
+            const waitForReady = window.PercyDOM.waitForReady;
+            window.PercyDOM.waitForReady = function(cfg) {
+              window.__percyReadinessReceived = JSON.parse(JSON.stringify(cfg));
+              return typeof waitForReady === 'function'
+                ? waitForReady.apply(this, arguments)
+                : Promise.resolve({});
+            };
           });
         }
         return origEvaluate(script, ...rest);
@@ -136,7 +144,9 @@ describe('percySnapshot', () => {
 
       await percySnapshot(page, 'readiness-config-data', { readiness: { preset } });
 
-      expect(received).toEqual(preset);
+      /* istanbul ignore next: browser-executed probe */
+      const received = await origEvaluate(() => window.__percyReadinessReceived);
+      expect(received).toEqual(jasmine.objectContaining({ preset }));
       expect(await origEvaluate(() => window.__percyReadinessProbe)).toBeUndefined();
     });
 
