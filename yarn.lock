@@ -1598,9 +1598,9 @@ internal-slot@^1.0.3:
     side-channel "^1.0.4"
 
 ip-address@^10.1.1:
-  version "10.2.0"
-  resolved "https://registry.yarnpkg.com/ip-address/-/ip-address-10.2.0.tgz#805fc178b20c518bd4c8548b24fe30892d7f3206"
-  integrity sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==
+  version "10.7.4"
+  resolved "https://registry.yarnpkg.com/ip-address/-/ip-address-10.7.4.tgz#a5e493fabce725c5d4b8b8f4d2ebb9009fbcf2e8"
+  integrity sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==
 
 irregular-plurals@^3.2.0:
   version "3.2.0"
